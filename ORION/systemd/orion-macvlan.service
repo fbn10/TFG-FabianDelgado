@@ -1,0 +1,13 @@
+[Unit]
+Description=ORION - Macvlan eno1.cliA + policy routing tabla 100
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/home/minerva/Escritorio/TFG_Fabian/ORION/tools/macvlan_up.sh
+ExecStop=/home/minerva/Escritorio/TFG_Fabian/ORION/tools/macvlan_down.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=ORION - dispara el WAF detector cada 5 segundos
+
+[Timer]
+OnBootSec=20s
+OnUnitActiveSec=5s
+AccuracySec=1s
+Unit=orion-waf-detector.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,15 @@
+[Unit]
+Description=ORION - Refresca AbuseIPDB cada 24h (limite del plan gratuito)
+
+[Timer]
+# 1 vez al dia, a las 04:30 (hora de menos uso)
+OnCalendar=*-*-* 04:30:00
+# Si el sistema estuvo apagado, lanza al boot
+Persistent=true
+# Ejecuta tambien 5 minutos despues del boot la primera vez
+OnBootSec=5min
+# El servicio asociado
+Unit=orion-abuseipdb.service
+
+[Install]
+WantedBy=timers.target

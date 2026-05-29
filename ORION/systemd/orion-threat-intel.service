@@ -1,0 +1,11 @@
+[Unit]
+Description=ORION - Ingesta de threat intelligence (FireHOL + Spamhaus)
+After=elasticsearch.service network-online.target
+Wants=elasticsearch.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/minerva/Escritorio/TFG_Fabian/ORION
+ExecStart=/usr/bin/python3 /home/minerva/Escritorio/TFG_Fabian/ORION/tools/threat_intel_ingest.py
+StandardOutput=journal
+StandardError=journal

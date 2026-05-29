@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Mi cuenta - ORION Bank{% endblock %}
+
+{% block content %}
+<section class="dashboard">
+  <header class="dash-header">
+    <h1>Hola, <span class="accent">{{ username }}</span></h1>
+    <p class="muted">
+      Rol(es): {% for r in roles %}<span class="badge">{{ r }}</span>{% endfor %}
+    </p>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Saldo</h2>
+      <div id="saldo-value" class="big-number">cargando...</div>
+      <div id="saldo-meta" class="muted">IBAN: <span id="saldo-iban">-</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Token JWT activo</h2>
+      <p class="muted">Token de sesion de tu banca online.</p>
+      <textarea readonly class="token-box">{{ token }}</textarea>
+      <button class="btn btn-ghost" onclick="navigator.clipboard.writeText(document.querySelector('.token-box').value)">Copiar</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Ultimos movimientos</h2>
+    <table id="movs" class="movs">
+      <thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Importe</th></tr></thead>
+      <tbody><tr><td colspan="3" class="muted">cargando...</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Realizar transferencia</h2>
+    <form id="form-transfer" class="transfer-form" onsubmit="enviarTransferencia(event)">
+      <label>
+        <span>IBAN destinatario</span>
+        <input type="text" id="t-iban" placeholder="ES00 0000 0000 0000 0000 0000" required>
+      </label>
+      <label>
+        <span>Nombre destinatario</span>
+        <input type="text" id="t-nombre" placeholder="Nombre completo" required>
+      </label>
+      <label>
+        <span>Importe (EUR)</span>
+        <input type="number" id="t-importe" step="0.01" min="0.01" required>
+      </label>
+      <label class="full">
+        <span>Concepto</span>
+        <input type="text" id="t-concepto" placeholder="Concepto de la transferencia">
+      </label>
+      <button type="submit" class="btn btn-primary">Enviar transferencia</button>
+    </form>
+    <div id="transfer-result" class="result"></div>
+  </div>
+
+  <div class="card">
+    <h2>Comprobante PDF</h2>
+    <p class="muted">Descarga el comprobante de tu cuenta en formato PDF.</p>
+    <a class="btn btn-primary" href="{{ url_for('comprobante_pdf') }}">Descargar comprobante.pdf</a>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const TOKEN = {{ token | tojson }};
+
+  async function call(url, opts = {}) {
+    opts.headers = Object.assign({
+      "Authorization": "Bearer " + TOKEN,
+      "Accept": "application/json"
+    }, opts.headers || {});
+    const r = await fetch(url, opts);
+    return { status: r.status, body: await r.json().catch(() => ({})) };
+  }
+
+  async function cargarSaldo() {
+    const { body } = await call("/api/saldo");
+    document.getElementById("saldo-value").textContent =
+      (body.saldo !== undefined ? body.saldo.toFixed(2) + " " + (body.moneda || "EUR") : "-");
+    document.getElementById("saldo-iban").textContent = body.iban || "-";
+  }
+
+  async function cargarMovs() {
+    const { body } = await call("/api/movimientos");
+    const tbody = document.querySelector("#movs tbody");
+    if (!body.movimientos || !body.movimientos.length) {
+      tbody.innerHTML = `<tr><td colspan="3" class="muted">Sin movimientos.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = body.movimientos.map(m => `
+      <tr>
+        <td>${m.fecha}</td>
+        <td>${m.concepto}</td>
+        <td class="num ${m.importe < 0 ? 'neg' : 'pos'}">${m.importe.toFixed(2)} EUR</td>
+      </tr>
+    `).join("");
+  }
+
+  async function enviarTransferencia(ev) {
+    ev.preventDefault();
+    const payload = {
+      destinatario_iban:   document.getElementById("t-iban").value,
+      destinatario_nombre: document.getElementById("t-nombre").value,
+      importe:             parseFloat(document.getElementById("t-importe").value),
+      concepto:            document.getElementById("t-concepto").value,
+    };
+    const { status, body } = await call("/api/transferencia", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const out = document.getElementById("transfer-result");
+    if (status === 200 && body.ok) {
+      out.innerHTML = `<div class="alert alert-ok">Transferencia OK: <code>${body.id_transferencia}</code></div>`;
+      cargarSaldo();
+    } else {
+      out.innerHTML = `<div class="alert alert-error">Error ${status}: ${body.error || "desconocido"}</div>`;
+    }
+  }
+
+  cargarSaldo();
+  cargarMovs();
+</script>
+{% endblock %}

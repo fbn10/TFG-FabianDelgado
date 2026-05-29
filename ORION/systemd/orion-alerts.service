@@ -1,0 +1,16 @@
+[Unit]
+Description=ORION - Correlador de alertas (Packetbeat n orion-threat-intel)
+After=elasticsearch.service
+Wants=elasticsearch.service
+
+[Service]
+Type=oneshot
+User=minerva
+WorkingDirectory=/home/minerva/Escritorio/TFG_Fabian/ORION
+ExecStart=/home/minerva/Escritorio/TFG_Fabian/ORION/venv/bin/python3 /home/minerva/Escritorio/TFG_Fabian/ORION/tools/alert_correlator.py
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=orion-alerts
+
+[Install]
+WantedBy=multi-user.target

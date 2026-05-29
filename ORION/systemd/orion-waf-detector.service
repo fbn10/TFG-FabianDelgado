@@ -1,0 +1,14 @@
+[Unit]
+Description=ORION - WAF detector (lee orion-mitm-traffic, dispara bloqueos auto)
+After=elasticsearch.service
+Wants=elasticsearch.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /home/minerva/Escritorio/TFG_Fabian/ORION/tools/waf_detector.py
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=orion-waf-detector

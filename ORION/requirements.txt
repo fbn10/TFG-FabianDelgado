@@ -1,0 +1,26 @@
+# Dependencias reales de ORION.
+# Reproducir con:
+#   python3 -m venv venv
+#   ./venv/bin/pip install -r requirements.txt
+#
+# Nota: bcc (python-bpfcc) se instala desde apt, no desde pip:
+#   sudo apt install python3-bpfcc
+
+# Control plane Flask
+Flask>=3.0
+Jinja2>=3.1
+
+# Cliente Elasticsearch
+elasticsearch>=8.11,<9
+
+# Llamadas HTTP a APIs externas (AbuseIPDB, RIPE Stat)
+requests>=2.31
+
+# Descifrado HTTPS + addon de inspeccion
+mitmproxy>=11.0
+
+# Banco demo (JWT de sesion)
+PyJWT>=2.8
+
+# Generador del manual de instalacion (.docx)
+python-docx>=1.0

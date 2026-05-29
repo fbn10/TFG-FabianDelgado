@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Bloqueos auto - ORION{% endblock %}
+{% block page_title %}Bloqueos automaticos por WAF{% endblock %}
+
+{% block content %}
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 22px;">
+  <div class="kpi">
+    <div class="kpi-label">Bloqueos activos</div>
+    <div class="kpi-value" id="bkActive">--</div>
+    <div class="kpi-sub">XDP tumbando ahora mismo</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">IPs unicas</div>
+    <div class="kpi-value" id="bkUniqueIps">--</div>
+    <div class="kpi-sub">distintas atacantes</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Total historico</div>
+    <div class="kpi-value" id="bkTotalHist">--</div>
+    <div class="kpi-sub">desde el arranque</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Tipo mas frecuente</div>
+    <div class="kpi-value" id="bkTopType" style="font-size: 22px;">--</div>
+    <div class="kpi-sub" id="bkTopTypeSub">--</div>
+  </div>
+</div>
+
+<!-- Activos -->
+<h2 style="margin-top: 6px;">Activos ahora</h2>
+<div class="table-wrap" style="margin-bottom: 28px;">
+  <table class="data-table" id="bkActiveTable">
+    <thead>
+      <tr>
+        <th>IP origen</th>
+        <th>Tipo</th>
+        <th>Detecciones</th>
+        <th>Motivo (patron)</th>
+        <th>Iface</th>
+        <th>Bloqueada hace</th>
+        <th>TTL restante</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="8" class="muted">cargando...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Contador por IP -->
+<h2>Reincidencia por IP</h2>
+<div class="table-wrap" style="margin-bottom: 28px;">
+  <table class="data-table" id="bkByIpTable">
+    <thead>
+      <tr>
+        <th>IP</th>
+        <th>Detecciones totales</th>
+        <th>Ultimo bloqueo</th>
+        <th>Ultimo tipo</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="5" class="muted">cargando...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Historico -->
+<h2>Historico completo</h2>
+<div class="table-wrap">
+  <table class="data-table" id="bkHistoryTable">
+    <thead>
+      <tr>
+        <th>Cuando</th>
+        <th>IP origen</th>
+        <th>Tipo</th>
+        <th>Motivo</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="5" class="muted">cargando...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Refresca cada 2s. La cuenta atras de TTL se redibuja en local cada 500ms
+  // para que el countdown sea fluido sin pegarle 1 fetch/s a la API.
+  let lastFetch = null;
+  let activeRules = [];
+
+  function fmtAgo(iso) {
+    if (!iso) return "--";
+    const t = new Date(iso).getTime();
+    const sec = Math.floor((Date.now() - t) / 1000);
+    if (sec < 60)   return sec + "s";
+    if (sec < 3600) return Math.floor(sec / 60) + "m " + (sec % 60) + "s";
+    return Math.floor(sec / 3600) + "h " + Math.floor((sec % 3600) / 60) + "m";
+  }
+
+  function fmtTTL(expiresIso) {
+    if (!expiresIso) return "--";
+    const left = Math.max(0, Math.floor((new Date(expiresIso).getTime() - Date.now()) / 1000));
+    if (left < 60)   return left + "s";
+    if (left < 3600) return Math.floor(left / 60) + "m " + (left % 60) + "s";
+    return Math.floor(left / 3600) + "h " + Math.floor((left % 3600) / 60) + "m";
+  }
+
+  // Escapa caracteres HTML para inyectar valores en innerHTML con seguridad.
+  // Critico aqui porque el campo 'reason' lleva el propio payload del ataque
+  // y al insertarlo crudo el navegador lo interpretaba como HTML, rompiendo
+  // la fila y los botones de Permanente/Liberar.
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return "";
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+
+  function fmtType(t) {
+    const map = {
+      sqli:         "SQLi",
+      xss:          "XSS",
+      rce:          "RCE",
+      lfi:          "LFI / Path",
+      brute_force:  "Fuerza bruta",
+      fuzzing:      "Fuzzing 404",
+      malicious_ua: "UA atacante",
+    };
+    return map[t] || t || "?";
+  }
+
+  function severityClass(t) {
+    if (t === "sqli" || t === "rce" || t === "lfi") return "sev-high";
+    if (t === "xss" || t === "brute_force" || t === "malicious_ua") return "sev-medium";
+    return "sev-low";
+  }
+
+  async function releaseBlock(id, ip) {
+    if (!confirm(`Liberar el bloqueo de ${ip || id}?`)) return;
+    try {
+      const r = await fetch(`/api/blocks/auto/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error(r.statusText);
+      fetchData();
+    } catch (e) {
+      alert("Error liberando: " + e);
+    }
+  }
+
+  async function promoteBlock(id, ip) {
+    if (!confirm(`Hacer permanente el bloqueo de ${ip || id}?\n\nLa regla pasara a la pestana Reglas y dejara de tener TTL.`)) return;
+    try {
+      const r = await fetch(`/api/blocks/auto/${id}/promote`, { method: "POST" });
+      if (!r.ok) throw new Error(r.statusText);
+      fetchData();
+    } catch (e) {
+      alert("Error promocionando: " + e);
+    }
+  }
+
+  function renderActive() {
+    const tbody = document.querySelector("#bkActiveTable tbody");
+    if (!activeRules.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="muted">Ninguna IP bloqueada activamente.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = activeRules.map(r => {
+      const hits = r.hit_count || 1;
+      const alertType = r.last_alert_type || r.alert_type;
+      const reason    = r.last_reason || r.reason || "";
+      const reasonEsc = escapeHtml(reason);   // unico campo con payload del atacante
+      return `
+      <tr>
+        <td><code>${r.source_ip || "--"}</code></td>
+        <td><span class="badge ${severityClass(alertType)}">${fmtType(alertType)}</span></td>
+        <td><strong>${hits}</strong> ${hits === 1 ? "vez" : "veces"}</td>
+        <td title="${reasonEsc}" style="max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><code>${reasonEsc || "--"}</code></td>
+        <td>${r.iface || "--"}</td>
+        <td>${fmtAgo(r.created_at)}</td>
+        <td><strong style="color: var(--accent);">${fmtTTL(r.expires_at)}</strong></td>
+        <td style="white-space: nowrap;">
+          <button class="btn btn-sm" onclick="promoteBlock('${r.id}', '${r.source_ip || ""}')" title="Convertir en regla permanente">Permanente</button>
+          <button class="btn btn-sm" onclick="releaseBlock('${r.id}', '${r.source_ip || ""}')" title="Quitar el bloqueo ahora">Liberar</button>
+        </td>
+      </tr>
+    `;}).join("");
+  }
+
+  function renderByIp(byIp) {
+    const tbody = document.querySelector("#bkByIpTable tbody");
+    if (!byIp.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="muted">Sin historial todavia.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = byIp.map(x => {
+      const hits = x.total_hits || x.total_blocks;
+      return `
+      <tr>
+        <td><code>${x.ip}</code></td>
+        <td><strong>${hits}</strong> ${hits === 1 ? "deteccion" : "detecciones"}</td>
+        <td>${fmtAgo(x.last_block_at)} (${new Date(x.last_block_at).toLocaleString()})</td>
+        <td><span class="badge ${severityClass(x.last_alert_type)}">${fmtType(x.last_alert_type)}</span></td>
+        <td>${x.currently_active
+              ? '<span class="badge sev-high">ACTIVO</span>'
+              : '<span class="badge muted-badge">expirado</span>'}</td>
+      </tr>
+    `;}).join("");
+  }
+
+  function renderHistory(history) {
+    const tbody = document.querySelector("#bkHistoryTable tbody");
+    if (!history.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="muted">Sin historial todavia.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = history.slice(0, 200).map(r => `
+      <tr>
+        <td>${new Date(r.created_at).toLocaleString()}</td>
+        <td><code>${r.source_ip || "--"}</code></td>
+        <td><span class="badge ${severityClass(r.alert_type)}">${fmtType(r.alert_type)}</span></td>
+        <td style="max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><code>${escapeHtml(r.reason || "--")}</code></td>
+        <td>${r.enabled
+              ? '<span class="badge sev-high">activo</span>'
+              : '<span class="badge muted-badge">disabled</span>'}</td>
+      </tr>
+    `).join("");
+  }
+
+  async function fetchData() {
+    try {
+      const r = await fetch("/api/blocks/auto");
+      if (!r.ok) throw new Error(r.statusText);
+      const data = await r.json();
+      lastFetch = data;
+      activeRules = data.active || [];
+
+      document.getElementById("bkActive").textContent     = data.total_active;
+      document.getElementById("bkUniqueIps").textContent  = data.unique_ips;
+      document.getElementById("bkTotalHist").textContent  = data.total_history;
+
+      // tipo mas frecuente del historico
+      const counts = {};
+      (data.history || []).forEach(r => {
+        const t = r.alert_type || "unknown";
+        counts[t] = (counts[t] || 0) + 1;
+      });
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      document.getElementById("bkTopType").textContent    = top ? fmtType(top[0]) : "--";
+      document.getElementById("bkTopTypeSub").textContent = top ? `${top[1]} ${top[1] === 1 ? "incidente" : "incidentes"}` : "--";
+
+      renderActive();
+      renderByIp(data.by_ip || []);
+      renderHistory(data.history || []);
+    } catch (e) {
+      console.error("blocks fetch error", e);
+    }
+  }
+
+  // primer fetch + refresco cada 2s
+  fetchData();
+  setInterval(fetchData, 2000);
+
+  // redibujar countdown TTL a 2 Hz sin tocar la red
+  setInterval(() => {
+    if (activeRules.length) renderActive();
+  }, 500);
+</script>
+{% endblock %}

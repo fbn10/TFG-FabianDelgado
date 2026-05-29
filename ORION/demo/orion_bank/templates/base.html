@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ORION Bank{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <nav class="topbar">
+    <div class="brand">
+      <span class="logo-mark">O</span>
+      <span class="brand-name">ORION <span class="brand-suffix">Bank</span></span>
+    </div>
+    <div class="topnav">
+      <a href="{{ url_for('index') }}">Inicio</a>
+      {% if request.cookies.get('orion_bank_token') %}
+        <a href="{{ url_for('dashboard') }}">Mi cuenta</a>
+        <a href="{{ url_for('logout') }}" class="logout">Cerrar sesion</a>
+      {% else %}
+        <a href="{{ url_for('login_page') }}" class="cta">Acceder</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <p>
+      &copy; 2026 ORION Bank. Todos los derechos reservados.
+      Banca online - Aviso legal - Privacidad - Seguridad.
+    </p>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

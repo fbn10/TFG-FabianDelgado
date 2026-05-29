@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Inteligencia - ORION{% endblock %}
+{% block page_title %}Ciberinteligencia{% endblock %}
+
+{% block content %}
+
+<!-- KPIs -->
+<div class="kpi-grid" style="margin-bottom: 22px;">
+  <div class="kpi">
+    <div class="kpi-label">IPs maliciosas indexadas</div>
+    <div class="kpi-value" id="tiTotal">--</div>
+    <div class="kpi-sub" id="tiTotalSub">--</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Score medio</div>
+    <div class="kpi-value" id="tiAvgScore">--</div>
+    <div class="kpi-sub">% de confianza promedio</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Score &ge; 90% (muy alta)</div>
+    <div class="kpi-value" id="tiHighScore">--</div>
+    <div class="kpi-sub">IPs casi seguras de ser maliciosas</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Top pais origen</div>
+    <div class="kpi-value" id="tiTopCountry">--</div>
+    <div class="kpi-sub" id="tiTopCountryCount">--</div>
+  </div>
+</div>
+
+<!-- Comprobador puntual + filtros -->
+<div class="row-flex" style="margin-bottom: 16px; gap: 12px; display:flex; flex-wrap:wrap; align-items:center;">
+
+  <div style="display:flex; gap:6px; align-items:center;">
+    <input type="text" id="tiCheckIp" placeholder="Ej: 185.220.101.5" style="width: 220px;">
+    <button class="btn btn-primary" id="tiCheckBtn" title="Busca en la lista local (instantaneo, gratis)">Comprobar (local)</button>
+    <button class="btn btn-ghost" id="tiCheckLiveBtn" title="Consulta directamente la API de AbuseIPDB. Gasta 1 cuota del plan diario (1000/dia)">Verificar en vivo (API)</button>
+  </div>
+
+  <div style="display:flex; gap:6px; align-items:center;">
+    <label class="muted" style="font-size:13px;">Score min:</label>
+    <select id="tiFilterMinScore">
+      <option value="75">75% (default)</option>
+      <option value="50">50%</option>
+      <option value="80">80%</option>
+      <option value="90">90%</option>
+      <option value="100">100%</option>
+    </select>
+  </div>
+
+  <div style="display:flex; gap:6px; align-items:center;">
+    <input type="text" id="tiSearch" placeholder="Buscar IP..." style="width: 200px;">
+    <select id="tiFilterCountry">
+      <option value="">Todos los paises</option>
+    </select>
+  </div>
+
+  <div class="muted" id="tiResultsCount" style="margin-left:auto;">--</div>
+</div>
+
+<div id="tiCheckResult" class="alert" style="display:none; margin-bottom:16px;"></div>
+
+<!-- Tabla principal con score visible -->
+<div class="table-card">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>IP</th>
+        <th>Confidence score</th>
+        <th>Pais</th>
+        <th>Ultimo reporte</th>
+        <th>Fuente</th>
+        <th>Categoria</th>
+      </tr>
+    </thead>
+    <tbody id="tiBody">
+      <tr><td colspan="7" class="empty">Cargando...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="row-flex" style="margin-top: 12px; display:flex; gap:12px; align-items:center;">
+  <button class="btn btn-ghost" id="tiPrev">&laquo; anterior</button>
+  <div class="muted" id="tiPageInfo">pagina 1</div>
+  <button class="btn btn-ghost" id="tiNext">siguiente &raquo;</button>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/threat_intel.js') }}?v=2"></script>
+{% endblock %}

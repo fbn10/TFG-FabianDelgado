@@ -1,0 +1,14 @@
+[Unit]
+Description=ORION - Reglas nftables REDIRECT para mitmproxy transparente
+After=network-online.target
+Before=orion-mitmweb.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/home/minerva/Escritorio/TFG_Fabian/ORION/tools/mitm_nftables_up.sh
+ExecStop=/home/minerva/Escritorio/TFG_Fabian/ORION/tools/mitm_nftables_down.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+[Unit]
+Description=ORION - Consumer del BPF_RINGBUF de orion_xdp_redirect (indexa eventos en ES)
+After=orion-xdp-redirect.service
+Requires=orion-xdp-redirect.service
+
+# Si el XDP_REDIRECT no esta vivo, este servicio tampoco tiene sentido.
+PartOf=orion-xdp-redirect.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/minerva/Escritorio/TFG_Fabian/ORION
+ExecStart=/usr/bin/python3 /home/minerva/Escritorio/TFG_Fabian/ORION/tools/flow_consumer.py
+Restart=on-failure
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=orion-flow-consumer
+
+[Install]
+WantedBy=multi-user.target

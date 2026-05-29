@@ -1,0 +1,11 @@
+[Unit]
+Description=ORION - dispara el expirer de bloqueos auto cada 5 segundos
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=5s
+AccuracySec=1s
+Unit=orion-block-expirer.service
+
+[Install]
+WantedBy=timers.target

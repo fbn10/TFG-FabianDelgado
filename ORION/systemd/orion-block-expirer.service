@@ -1,0 +1,14 @@
+[Unit]
+Description=ORION - expira bloqueos auto del WAF (pasa enabled a false cuando TTL caduca)
+After=elasticsearch.service
+Wants=elasticsearch.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /home/minerva/Escritorio/TFG_Fabian/ORION/tools/block_expirer.py
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=orion-block-expirer

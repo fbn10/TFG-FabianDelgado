@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboards - ORION{% endblock %}
+{% block page_title %}Dashboards{% endblock %}
+
+{% block content %}
+
+<div class="dash-tabs">
+  <button class="dash-tab active" data-target="if-orion">Inspeccion HTTP/HTTPS</button>
+  <button class="dash-tab" data-target="if-cyber">Cyberinteligencia</button>
+  <button class="dash-tab" data-target="if-overview">Resumen</button>
+  <button class="dash-tab" data-target="if-flows">Flujos de red</button>
+  <button class="dash-tab" data-target="if-dns">DNS</button>
+  <button class="dash-tab" data-target="if-tls">TLS</button>
+  <button class="dash-tab" data-target="if-maps">Mapa</button>
+  <button class="dash-tab" data-target="if-discover">Trafico crudo</button>
+  <button class="dash-tab" data-target="if-system">Sistema</button>
+</div>
+
+<div class="dash-frame-wrap">
+
+  <!-- Dashboard propio de ORION: combina HTTP plano (Packetbeat) + HTTPS descifrado
+       (orion-mitm-traffic) + trafico de red total. Sustituye a la antigua pestaña
+       "HTTP" que solo veia trafico plano. Generado con tools/build_kibana_dashboard.py. -->
+  <iframe id="if-orion" class="dash-frame active"
+    src="http://localhost:5601/app/dashboards#/view/orion-inspeccion-trafico?embed=true&_g=(refreshInterval:(pause:!f,value:5000),time:(from:now-7d,to:now))"
+    title="Inspeccion de trafico - ORION"></iframe>
+
+  <!-- Cyberinteligencia: IPs maliciosas de AbuseIPDB con score, paises, top criticas -->
+  <iframe id="if-cyber" class="dash-frame"
+    src="http://localhost:5601/app/dashboards#/view/orion-cyberinteligencia?embed=true&_g=(refreshInterval:(pause:!f,value:30000),time:(from:now-24h,to:now))"
+    title="Cyberinteligencia - ORION"></iframe>
+
+  <!-- Resumen general: top hosts, protocolos, latencias, mini-mapa -->
+  <iframe id="if-overview" class="dash-frame"
+    src="http://localhost:5601/app/dashboards#/view/Packetbeat-Dashboard-ecs?embed=true&_g=(refreshInterval:(pause:!f,value:5000),time:(from:now-7d,to:now))"
+    title="Resumen Packetbeat"></iframe>
+
+  <!-- Flows: conexiones agregadas por 5-tupla (top hosts, top puertos, etc.) -->
+  <iframe id="if-flows" class="dash-frame"
+    src="http://localhost:5601/app/dashboards#/view/Packetbeat-Flows-ecs?embed=true&_g=(refreshInterval:(pause:!f,value:5000),time:(from:now-7d,to:now))"
+    title="Network Flows"></iframe>
+
+  <!-- DNS: consultas, dominios mas resueltos, tiempos de respuesta -->
+  <iframe id="if-dns" class="dash-frame"
+    src="http://localhost:5601/app/dashboards#/view/65120940-1454-11e9-9de0-f98d1808db8e-ecs?embed=true&_g=(refreshInterval:(pause:!f,value:5000),time:(from:now-7d,to:now))"
+    title="DNS Overview"></iframe>
+
+  <!-- TLS: handshakes, SNI (dominios visitados sin descifrar) -->
+  <iframe id="if-tls" class="dash-frame"
+    src="http://localhost:5601/app/dashboards#/view/tls-sessions-ecs?embed=true&_g=(refreshInterval:(pause:!f,value:5000),time:(from:now-7d,to:now))"
+    title="TLS Sessions"></iframe>
+
+  <!-- Mapa: app de Maps. Si guardas un mapa custom, se ve en la lista -->
+  <iframe id="if-maps" class="dash-frame"
+    src="http://localhost:5601/app/maps?embed=true"
+    title="Maps"></iframe>
+
+  <!-- Discover: tabla cruda de cada documento, con filtros KQL -->
+  <iframe id="if-discover" class="dash-frame"
+    src="http://localhost:5601/app/discover#/?embed=true&_g=(refreshInterval:(pause:!f,value:5000),time:(from:now-15m,to:now))"
+    title="Discover"></iframe>
+
+  <!-- Sistema: metricas de la maquina ORION (CPU, RAM, red, IO) via metricbeat -->
+  <iframe id="if-system" class="dash-frame"
+    src="http://localhost:5601/app/dashboards#/view/79ffd6e0-faa0-11e6-947f-177f697178b8-ecs?embed=true&_g=(refreshInterval:(pause:!f,value:5000),time:(from:now-15m,to:now))"
+    title="Metricas del sistema"></iframe>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Tabs: cambia el iframe visible.
+  const tabs = document.querySelectorAll(".dash-tab");
+  const frames = document.querySelectorAll(".dash-frame");
+
+  function showTab(targetId) {
+    tabs.forEach(t => t.classList.toggle("active", t.dataset.target === targetId));
+    frames.forEach(f => f.classList.toggle("active", f.id === targetId));
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => showTab(tab.dataset.target));
+  });
+</script>
+{% endblock %}

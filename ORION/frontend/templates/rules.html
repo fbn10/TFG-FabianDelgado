@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}Reglas - ORION{% endblock %}
+{% block page_title %}Reglas de filtrado{% endblock %}
+
+{% block content %}
+
+<!-- Tabs por interfaz + historial -->
+<div class="dash-tabs" id="rulesTabs">
+  <button class="dash-tab active" data-iface="enp6s0f0">Cliente (enp6s0f0)</button>
+  <button class="dash-tab" data-iface="eno1">Internet (eno1)</button>
+  <button class="dash-tab" data-iface="enp6s0f1">TRex (enp6s0f1)</button>
+  <button class="dash-tab" data-iface="__history__">Historial</button>
+</div>
+
+<!-- Vista normal: tabla de reglas activas en la iface seleccionada -->
+<div id="rulesView" class="rules-pane">
+
+  <div class="row-flex" style="margin: 16px 0;">
+    <div class="muted" id="rulesCount">0 reglas activas</div>
+    <button class="btn btn-primary" id="btnNewRule">+ Nueva regla</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 60px">Prio</th>
+          <th>Nombre</th>
+          <th>Origen</th>
+          <th>Destino</th>
+          <th>Proto</th>
+          <th>Limite</th>
+          <th>Accion</th>
+          <th style="width: 110px"></th>
+        </tr>
+      </thead>
+      <tbody id="rulesBody">
+        <tr><td colspan="8" class="empty">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Vista historial: tabla de eventos (created/updated/disabled) -->
+<div id="historyView" class="rules-pane" style="display: none;">
+
+  <div class="row-flex" style="margin: 16px 0; justify-content: flex-end;">
+    <button class="btn btn-ghost" id="btnRefreshHistory">Refrescar</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 180px">Cuando</th>
+          <th style="width: 110px">Operacion</th>
+          <th>Regla</th>
+          <th style="width: 80px">Usuario</th>
+          <th>Detalles</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        <tr><td colspan="5" class="empty">Cargando historial...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- Modal compartido para crear / editar -->
+<div class="modal-backdrop" id="ruleModal">
+  <div class="modal" style="max-width: 540px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modalTitle">Nueva regla</h3>
+      <button class="btn btn-ghost" id="modalClose" type="button">cerrar</button>
+    </div>
+
+    <form id="ruleForm" autocomplete="off">
+      <input type="hidden" name="rule_id" />
+
+      <div class="form-row">
+        <label>Nombre</label>
+        <input type="text" name="name" placeholder="Ej: Bloquear SSH desde la oficina" />
+      </div>
+
+      <div class="form-row">
+        <label>Interfaz</label>
+        <select name="iface" required>
+          <option value="enp6s0f0">enp6s0f0 (cliente)</option>
+          <option value="eno1">eno1 (Internet)</option>
+          <option value="enp6s0f1">enp6s0f1 (TRex)</option>
+        </select>
+      </div>
+
+      <fieldset class="rule-fieldset">
+        <legend>Origen</legend>
+        <div class="form-row">
+          <label>IP origen</label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" name="source_ip" id="sourceIpInput" placeholder="ej. 10.0.2.10  o  10.0.0.0/24" style="flex:1;" />
+            <button type="button" id="btnLookupBgp" class="btn btn-sm" title="Consulta el prefijo BGP en RIPE Stat y rellena el campo con el CIDR">
+              Averiguar rango
+            </button>
+          </div>
+          <small id="lookupHint" class="muted" style="display:block; font-size:12px; margin-top:4px; min-height:1.2em;"></small>
+        </div>
+        <div class="form-row">
+          <label>Puerto origen</label>
+          <input type="text" name="source_port" placeholder="solo con TCP/UDP" />
+        </div>
+      </fieldset>
+
+      <fieldset class="rule-fieldset">
+        <legend>Destino</legend>
+        <div class="form-row">
+          <label>IP destino</label>
+          <input type="text" name="dest_ip" placeholder="ej. 1.2.3.4 (vacio = cualquiera)" />
+        </div>
+        <div class="form-row">
+          <label>Puerto destino</label>
+          <input type="text" name="dest_port" placeholder="ej. 22, 80, 443..." />
+        </div>
+      </fieldset>
+
+      <div class="form-row">
+        <label>Protocolo</label>
+        <select name="protocol">
+          <option value="any">Cualquiera</option>
+          <option value="tcp">TCP</option>
+          <option value="udp">UDP</option>
+          <option value="icmp">ICMP</option>
+        </select>
+      </div>
+
+      <fieldset class="rule-fieldset">
+        <legend>Rate-limit (opcional)</legend>
+        <div class="form-row">
+          <label>Paquetes/segundo (PPS)</label>
+          <input type="text" name="limit_pps" id="limitPpsInput" placeholder="ej. 50000" oninput="updateRateHints()" />
+          <small id="limitPpsHint" class="muted" style="display:block; font-size:12px; margin-top:4px; min-height:1.2em;"></small>
+        </div>
+        <div class="form-row">
+          <label>Bytes/segundo (BPS)</label>
+          <input type="text" name="limit_bps" id="limitBpsInput" placeholder="ej. 12500000 (=100 Mbit/s)" oninput="updateRateHints()" />
+          <small id="limitBpsHint" class="muted" style="display:block; font-size:12px; margin-top:4px; min-height:1.2em;"></small>
+        </div>
+      </fieldset>
+
+      <div class="form-row">
+        <label>Accion</label>
+        <select name="action" required>
+          <option value="drop">Denegar (DROP)</option>
+          <option value="allow">Permitir (ALLOW)</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>Prioridad (menor = se evalua antes)</label>
+        <input type="text" name="priority" value="100" />
+      </div>
+
+      <div class="form-row">
+        <label>Comentario</label>
+        <input type="text" name="comment" />
+      </div>
+
+      <div id="formError" style="color: var(--err); font-size: 13px; display: none; margin-top: 8px;"></div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="btnCancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnSubmit">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/rules.js') }}?v=3"></script>
+<script>
+  // Conversor en vivo de PPS y BPS a unidades humanas.
+  // Se ejecuta on input de los campos limit_pps y limit_bps.
+  // Lookup BGP: dado el contenido de source_ip, consulta RIPE Stat,
+  // muestra el prefijo y ASN, y rellena el campo con el CIDR si lo hay.
+  document.getElementById("btnLookupBgp").addEventListener("click", async () => {
+    const inp  = document.getElementById("sourceIpInput");
+    const hint = document.getElementById("lookupHint");
+    let v = (inp.value || "").trim();
+    // Si el usuario pego un CIDR, extraemos solo la IP para preguntarla.
+    if (v.includes("/")) v = v.split("/")[0];
+    if (!v) {
+      hint.textContent = "Introduce una IP antes de buscar.";
+      hint.style.color = "#c53030";
+      return;
+    }
+    hint.textContent = "Consultando RIPE Stat...";
+    hint.style.color = "";
+    try {
+      const r = await fetch(`/api/lookup/ip/${encodeURIComponent(v)}`);
+      const data = await r.json();
+      if (!r.ok) {
+        hint.textContent = "Error: " + (data.error || r.statusText);
+        hint.style.color = "#c53030";
+        return;
+      }
+      if (data.note) {
+        hint.textContent = data.note;
+        hint.style.color = "";
+        return;
+      }
+      if (!data.prefix) {
+        hint.textContent = `RIPE Stat no devolvio prefijo para ${v}.`;
+        hint.style.color = "";
+        return;
+      }
+      // Rellenar el input con el CIDR y mostrar la info del ASN.
+      inp.value = data.prefix;
+      hint.innerHTML = `Prefijo: <code>${data.prefix}</code>  |  ASN: <code>AS${data.asn || "?"}</code>  (fuente: ${data.source})`;
+      hint.style.color = "";
+    } catch (e) {
+      hint.textContent = "No se pudo contactar la API: " + e;
+      hint.style.color = "#c53030";
+    }
+  });
+
+  function updateRateHints() {
+    const ppsIn  = document.getElementById("limitPpsInput");
+    const bpsIn  = document.getElementById("limitBpsInput");
+    const ppsHint = document.getElementById("limitPpsHint");
+    const bpsHint = document.getElementById("limitBpsHint");
+
+    // PPS -> Mbit/s con paquetes 64B (peor caso, ataques) y 1500B (MTU normal).
+    const pps = parseInt((ppsIn.value || "").replace(/[^0-9]/g, ""), 10);
+    if (pps && pps > 0) {
+      const mbps64   = (pps * 64   * 8 / 1_000_000).toFixed(2);
+      const mbps1500 = (pps * 1500 * 8 / 1_000_000).toFixed(2);
+      ppsHint.textContent =
+        `~ ${mbps64} Mbit/s con paquetes 64B  |  ~ ${mbps1500} Mbit/s con paquetes 1500B`;
+    } else {
+      ppsHint.textContent = "";
+    }
+
+    // BPS (bytes/s) -> Mbit/s o Gbit/s segun magnitud.
+    const bps = parseInt((bpsIn.value || "").replace(/[^0-9]/g, ""), 10);
+    if (bps && bps > 0) {
+      const bits = bps * 8;
+      let txt;
+      if (bits >= 1_000_000_000) {
+        txt = `= ${(bits / 1_000_000_000).toFixed(3)} Gbit/s`;
+      } else if (bits >= 1_000_000) {
+        txt = `= ${(bits / 1_000_000).toFixed(2)} Mbit/s`;
+      } else if (bits >= 1_000) {
+        txt = `= ${(bits / 1_000).toFixed(2)} kbit/s`;
+      } else {
+        txt = `= ${bits} bit/s`;
+      }
+      bpsHint.textContent = txt;
+    } else {
+      bpsHint.textContent = "";
+    }
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - ORION{% endblock %}
+{% block page_title %}Inicio{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+
+  <!-- Cabecera (logo + textos). Lado izquierdo, alineado al 25% de altura -->
+  <header class="hero-head">
+    <img src="{{ url_for('static', filename='img/logo.webp') }}" alt="" class="hero-logo">
+    <img src="{{ url_for('static', filename='img/wordmark.webp') }}" alt="ORION" class="hero-wordmark">
+    <p class="hero-slogan">Optimized Real-time Inspection Of Networks</p>
+    <p class="hero-tagline">
+      Inspeccion y filtrado de trafico de red con XDP / eBPF.
+    </p>
+  </header>
+
+  <!-- Globo terraqueo. Lado derecho, centrado vertical (50% de altura).
+       Render via D3 + topojson en world-atlas 110m. Rotacion centrada en
+       Madrid para que el punto ORION quede visible y enfocado. -->
+  <div class="globe-wrap">
+    <svg id="worldRadar" viewBox="0 0 800 800" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <radialGradient id="oceanGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stop-color="#EAF4FB"/>
+          <stop offset="80%"  stop-color="#D4E8F4"/>
+          <stop offset="100%" stop-color="#BCD9E8"/>
+        </radialGradient>
+        <linearGradient id="sweepGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stop-color="#4FD1C5" stop-opacity="0"/>
+          <stop offset="80%"  stop-color="#4FD1C5" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="#4FD1C5" stop-opacity="0.7"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Disco oceanico (esfera de fondo) -->
+      <circle cx="400" cy="400" r="380" fill="url(#oceanGrad)"></circle>
+
+      <!-- Capas rellenadas por D3 -->
+      <g id="graticuleLayer"></g>
+      <g id="countriesLayer"></g>
+
+      <!-- Barrido giratorio del radar -->
+      <g transform="translate(400 400)">
+        <g class="sweep">
+          <path d="M0,0 L380,0 A380,380 0 0,0 268.7,-268.7 Z" fill="url(#sweepGrad)"></path>
+        </g>
+      </g>
+
+      <!-- Borde exterior nitido -->
+      <circle cx="400" cy="400" r="380" class="globe-border"></circle>
+
+      <!-- Punto ORION: posicion calculada en JS sobre Madrid -->
+      <circle id="orionMark" class="orion-mark" r="6"></circle>
+      <circle id="orionPulse" class="orion-pulse"></circle>
+    </svg>
+  </div>
+
+  <!-- Olas decorativas al pie. Tres ondas con amplitudes y velocidades
+       distintas para dar profundidad. Mitologia: ORION camino sobre las
+       aguas que su padre Poseidon habia alzado. -->
+  <svg class="hero-waves" viewBox="0 0 1440 200" preserveAspectRatio="none" aria-hidden="true">
+    <path class="wave wave-back"
+          d="M0,80 Q180,30 360,80 T720,80 T1080,80 T1440,80 L1440,200 L0,200 Z"></path>
+    <path class="wave wave-mid"
+          d="M0,110 Q240,60 480,110 T960,110 T1440,110 L1440,200 L0,200 Z"></path>
+    <path class="wave wave-front"
+          d="M0,140 Q120,110 240,140 T480,140 T720,140 T960,140 T1200,140 T1440,140 L1440,200 L0,200 Z"></path>
+  </svg>
+
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script>
+  // Render del globo con paths reales de Natural Earth (world-atlas 110m).
+  // Proyeccion ortografica centrada en Madrid (lon -3.7, lat 40.4) para que
+  // el punto ORION quede en el centro visible.
+
+  (async function () {
+    const W = 800, H = 800;
+    const cx = W / 2, cy = H / 2;
+    const R = 380;
+
+    const ORION_COORD = [-3.7, 40.4];
+
+    const projection = d3.geoOrthographic()
+      .scale(R)
+      .translate([cx, cy])
+      .rotate([-ORION_COORD[0], -ORION_COORD[1]])
+      .clipAngle(90);
+
+    const path = d3.geoPath(projection);
+
+    d3.select("#graticuleLayer")
+      .append("path")
+      .attr("d", path(d3.geoGraticule10()))
+      .attr("class", "graticule");
+
+    const [mx, my] = projection(ORION_COORD);
+    d3.select("#orionMark").attr("cx", mx).attr("cy", my);
+    d3.select("#orionPulse").attr("cx", mx).attr("cy", my).attr("r", 6);
+
+    try {
+      const world = await fetch(
+        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
+      ).then(r => r.json());
+
+      const countries = topojson.feature(world, world.objects.countries);
+      const borders   = topojson.mesh(world, world.objects.countries, (a, b) => a !== b);
+
+      const g = d3.select("#countriesLayer");
+      g.selectAll("path.country")
+        .data(countries.features)
+        .join("path")
+        .attr("class", "country")
+        .attr("d", path);
+
+      g.append("path")
+        .attr("class", "borders")
+        .attr("d", path(borders));
+    } catch (e) {
+      // sin internet -> globo solo con rejilla
+    }
+  })();
+</script>
+{% endblock %}

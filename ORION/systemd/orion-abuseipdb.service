@@ -1,0 +1,16 @@
+[Unit]
+Description=ORION - Ingesta de AbuseIPDB (threat intelligence) hacia ES
+After=network-online.target elasticsearch.service
+Wants=network-online.target elasticsearch.service
+
+[Service]
+Type=oneshot
+User=minerva
+WorkingDirectory=/home/minerva/Escritorio/TFG_Fabian/ORION
+ExecStart=/home/minerva/Escritorio/TFG_Fabian/ORION/venv/bin/python3 /home/minerva/Escritorio/TFG_Fabian/ORION/tools/abuseipdb_ingest.py
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=orion-abuseipdb
+
+[Install]
+WantedBy=multi-user.target

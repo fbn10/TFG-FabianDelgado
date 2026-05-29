@@ -1,0 +1,24 @@
+[Unit]
+Description=ORION XDP - Modo Observabilidad (NAT con XDP_PASS, MITM y Packetbeat ven el trafico)
+After=elasticsearch.service network-online.target
+Wants=elasticsearch.service network-online.target
+
+# Solo uno de los dos modos puede estar activo a la vez.
+# Si arrancas este, systemd para automaticamente orion-xdp-redirect.
+Conflicts=orion-xdp-redirect.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/minerva/Escritorio/TFG_Fabian/ORION
+ExecStart=/usr/bin/python3 /home/minerva/Escritorio/TFG_Fabian/ORION/tools/xdp_nat.py
+Restart=on-failure
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=orion-xdp-pass
+
+[Install]
+WantedBy=multi-user.target

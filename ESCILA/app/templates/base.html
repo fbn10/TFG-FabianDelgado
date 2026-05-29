@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESCILA — {% block titulo %}Generador de Tráfico{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=VT323&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --c:   #f0ff66;
+      --cd:  rgba(240,255,102,0.95);
+      --cdd: rgba(240,255,102,0.78);
+      --b:   rgba(240,255,102,0.50);
+      --b2:  rgba(240,255,102,0.75);
+      --bg:  #000000;
+      --bg2: #0e0e02;
+      --g:   rgba(240,255,102,0.15);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:var(--bg); color:var(--c); font-family:'Share Tech Mono',monospace; min-height:100vh; font-size:14px; }
+    body::before { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(0,0,0,0.04) 4px,rgba(0,0,0,0.04) 5px); pointer-events:none; z-index:9999; }
+
+    /* TOPBAR */
+    .topbar { position:sticky; top:0; z-index:200; height:58px; background:#000; border-bottom:2px solid var(--b2); display:flex; align-items:center; justify-content:space-between; padding:0 28px; box-shadow:0 2px 30px rgba(232,255,0,0.08); }
+    .logo { font-family:'Orbitron',monospace; font-weight:900; font-size:24px; letter-spacing:12px; color:var(--c); text-shadow:0 0 12px var(--c),0 0 32px rgba(232,255,0,0.4); text-decoration:none; animation:parpadeo 12s infinite; }
+    @keyframes parpadeo { 0%,100%{opacity:1} 93%{opacity:1} 94%{opacity:0.78} 95%{opacity:1} 98%{opacity:0.9} }
+    .logo-sub { font-family:'Orbitron',monospace; font-size:9px; letter-spacing:3px; color:var(--cdd); margin-left:14px; }
+    .topbar-izq { display:flex; align-items:baseline; gap:4px; }
+    .topbar-der { display:flex; align-items:center; gap:12px; }
+    .pastilla { display:flex; align-items:center; gap:7px; border:1px solid var(--b2); padding:5px 14px; font-family:'Orbitron',monospace; font-size:9px; letter-spacing:2px; color:var(--cd); }
+    .pastilla .punto { width:8px; height:8px; border-radius:50%; background:var(--c); box-shadow:0 0 8px var(--c); animation:blink 2s ease-in-out infinite; flex-shrink:0; }
+    .pastilla.apagado { border-color:#1c1c00; color:#333300; }
+    .pastilla.apagado .punto { background:#222200; box-shadow:none; animation:none; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.1} }
+    .reloj { font-family:'VT323',monospace; font-size:26px; color:var(--cd); letter-spacing:3px; }
+
+    /* LAYOUT */
+    .layout { display:grid; grid-template-columns:200px 1fr; min-height:calc(100vh - 58px); }
+
+    /* SIDEBAR */
+    .sidebar { background:var(--bg2); border-right:1px solid var(--b); padding:20px 0; display:flex; flex-direction:column; }
+    .sb-grupo { margin-bottom:24px; }
+    .sb-titulo { font-family:'Orbitron',monospace; font-size:10px; font-weight:700; letter-spacing:3px; color:var(--c); text-transform:uppercase; padding:0 16px 10px; border-bottom:2px solid var(--b); margin-bottom:6px; }
+    .sb-item { display:flex; align-items:center; gap:10px; padding:13px 16px; font-size:14px; font-weight:600; letter-spacing:1px; color:rgba(255,255,180,0.95); border-left:3px solid transparent; cursor:pointer; text-decoration:none; transition:all 0.15s; user-select:none; }
+    .sb-item:hover, .sb-item.activo { color:var(--c); background:rgba(255,255,153,0.12); border-left-color:var(--c); }
+    .sb-item .ico { font-size:17px; width:18px; text-align:center; }
+    .sb-pie { margin-top:auto; padding:16px; border-top:2px solid var(--b); font-size:11px; color:rgba(255,255,180,0.85); line-height:2; }
+
+    /* CONTENIDO */
+    .contenido { background:var(--bg); padding:26px 30px; overflow-y:auto; }
+    .cab-pagina { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; padding-bottom:14px; border-bottom:1px solid var(--b2); }
+    .cab-pagina h2 { font-family:'Orbitron',monospace; font-size:16px; font-weight:900; letter-spacing:6px; text-transform:uppercase; color:var(--c); display:flex; align-items:center; gap:12px; text-shadow:0 0 14px var(--c); }
+    .cab-pagina h2::before { content:'>>'; color:var(--c); font-size:14px; }
+
+    /* TARJETAS */
+    .tarjetas { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+    .tarjeta { background:var(--bg2); border:2px solid var(--b); padding:20px 22px; position:relative; transition:border-color 0.2s,box-shadow 0.2s; }
+    .tarjeta:hover { border-color:var(--c); box-shadow:0 0 28px var(--g); }
+    .tarjeta-etiqueta { font-family:'Orbitron',monospace; font-size:10px; font-weight:700; letter-spacing:3px; color:var(--c); text-transform:uppercase; display:block; margin-bottom:10px; }
+    .tarjeta-valor { font-family:'VT323',monospace; font-size:62px; line-height:1; display:block; color:#ffffff; text-shadow:0 0 14px var(--c), 0 0 28px rgba(255,255,153,0.6); }
+    .tarjeta-unidad { font-size:13px; font-weight:700; color:var(--c); letter-spacing:2px; margin-top:5px; display:block; }
+
+    /* PANEL */
+    .panel { background:var(--bg2); border:2px solid var(--b); padding:22px; margin-bottom:20px; }
+    .sec-titulo { font-family:'Orbitron',monospace; font-size:12px; font-weight:700; letter-spacing:5px; color:var(--c); text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:12px; text-shadow:0 0 8px var(--g); }
+    .sec-titulo::after { content:''; flex:1; height:2px; background:linear-gradient(90deg,var(--b2),transparent); }
+
+    /* FORM */
+    .fila4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
+    .fila3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:14px; }
+    .fila2 { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:14px; }
+    .campo label { display:block; font-family:'Orbitron',monospace; font-size:11px; font-weight:700; letter-spacing:2px; color:var(--c); text-transform:uppercase; margin-bottom:7px; }
+    .campo input, .campo select, .campo textarea { width:100%; background:#000; border:2px solid var(--b); color:#ffffff; padding:11px 13px; font-family:'Share Tech Mono',monospace; font-size:15px; font-weight:600; outline:none; transition:border-color 0.15s,box-shadow 0.15s; appearance:none; -webkit-appearance:none; resize:vertical; }
+    .campo input:focus, .campo select:focus, .campo textarea:focus { border-color:var(--c); box-shadow:0 0 14px var(--g); }
+    .campo select option { background:#000; color:#ffffff; }
+    .campo input::placeholder, .campo textarea::placeholder { color:rgba(255,255,180,0.65); }
+
+    /* BOTONES */
+    .fila-botones { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .btn { padding:13px 28px; font-family:'Orbitron',monospace; font-size:12px; letter-spacing:2px; text-transform:uppercase; cursor:pointer; border:none; font-weight:800; transition:all 0.18s; }
+    .btn-principal { background:var(--c); color:#000; box-shadow:0 0 14px rgba(232,255,0,0.35); }
+    .btn-principal:hover { box-shadow:0 0 28px rgba(232,255,0,0.7); transform:translateY(-2px); }
+    .btn-secundario { background:transparent; border:1px solid var(--b2); color:var(--c); }
+    .btn-secundario:hover { background:var(--g); border-color:var(--c); }
+    .btn-peligro { background:transparent; border:1px solid rgba(255,40,40,0.35); color:#ff5555; }
+    .btn-peligro:hover { background:rgba(255,40,40,0.08); border-color:#ff5555; }
+    .btn-verde { background:transparent; border:1px solid rgba(0,255,120,0.35); color:#00ff88; }
+    .btn-verde:hover { background:rgba(0,255,120,0.06); border-color:#00ff88; }
+
+    /* TABLA */
+    .tabla { width:100%; border-collapse:collapse; font-size:15px; }
+    .tabla th { background:var(--c); color:#000; padding:13px 16px; text-align:left; font-family:'Orbitron',monospace; font-size:11px; font-weight:800; letter-spacing:2px; text-transform:uppercase; }
+    .tabla td { padding:13px 16px; border-bottom:1px solid var(--b); color:#ffffff; vertical-align:middle; font-weight:500; }
+    .tabla tr:nth-child(even) td { background:var(--bg2); }
+    .tabla tr:hover td { color:var(--c); background:rgba(255,255,153,0.08); }
+
+    /* ETIQUETAS */
+    .etiqueta { display:inline-block; border:1px solid; padding:4px 10px; font-size:11px; font-weight:700; letter-spacing:1px; font-family:'Orbitron',monospace; }
+    .et-activo   { border-color:var(--c);  color:var(--c); }
+    .et-inactivo { border-color:#444; color:#888; }
+    .et-tcp      { border-color:rgba(60,200,255,0.9); color:rgba(120,220,255,1); }
+    .et-udp      { border-color:var(--c); color:var(--c); }
+    .et-icmp     { border-color:rgba(255,220,80,0.9); color:rgba(255,230,120,1); }
+
+    /* CONSOLA */
+    .consola { background:#000; border:2px solid var(--b); padding:16px 20px; font-size:15px; font-weight:500; line-height:2.1; height:180px; overflow-y:auto; color:#ffffff; }
+    .log-linea { display:flex; gap:12px; }
+    .log-hora  { color:rgba(255,255,180,0.85); flex-shrink:0; width:70px; font-weight:600; }
+    .log-ok    { color:#88ff88; font-weight:bold; min-width:60px; }
+    .log-info  { color:var(--c); font-weight:600; min-width:60px; }
+    .log-warn  { color:#ffdd44; font-weight:bold; min-width:60px; }
+    .log-error { color:#ff5555; font-weight:bold; min-width:60px; }
+
+    /* ALERTA */
+    .alerta { border:1px solid var(--b2); background:var(--g); padding:14px 18px; margin-bottom:14px; font-size:13px; display:none; font-family:'Orbitron',monospace; letter-spacing:1px; }
+    .alerta.visible { display:block; }
+    .alerta.error { border-color:rgba(255,60,60,0.5); background:rgba(255,40,40,0.05); color:#ff5555; }
+    .alerta.exito { border-color:var(--b2); color:var(--c); }
+
+    /* BARRA */
+    .barra-wrap { background:#000; border:2px solid var(--b); height:22px; width:100%; position:relative; overflow:hidden; border-radius:2px; }
+    .barra-fill { height:100%; background:var(--c); transition:width 0.6s ease; box-shadow:0 0 14px rgba(255,255,153,0.6) inset, 0 0 14px rgba(255,255,153,0.5); }
+    .barra-fill.alerta-uso { background:#ff5555; box-shadow:0 0 12px rgba(255,40,40,0.7) inset, 0 0 16px rgba(255,40,40,0.6); }
+
+    /* MISC */
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-track { background:#000; }
+    ::-webkit-scrollbar-thumb { background:var(--b2); border-radius:2px; }
+    .cursor { display:inline-block; width:10px; height:18px; background:var(--c); vertical-align:middle; margin-left:4px; animation:blink 1s step-end infinite; box-shadow:0 0 8px var(--c); }
+    .l7-panel { display:none; }
+    .l7-panel.visible { display:block; }
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-izq">
+    <a href="/" class="logo">ESCILA</a>
+  </div>
+  <div class="topbar-der">
+    <div class="pastilla apagado" id="pastilla-trex">
+      <div class="punto"></div>
+      <span id="estado-trex">DESCONECTADO</span>
+    </div>
+    <div class="pastilla apagado" id="pastilla-trafico">
+      <div class="punto"></div>
+      <span id="estado-trafico">TRÁFICO INACTIVO</span>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sb-grupo">
+      <div class="sb-titulo">Vistas</div>
+      <a href="/" class="sb-item {% if request.path == '/' %}activo{% endif %}">Dashboard</a>
+      <a href="/streams" class="sb-item {% if request.path == '/streams' %}activo{% endif %}">Stream Editor</a>
+      <a href="/iperf" class="sb-item {% if request.path == '/iperf' %}activo{% endif %}">iperf3</a>
+    </div>
+    <div class="sb-grupo">
+      <div class="sb-titulo">TRex</div>
+      <div class="sb-item" onclick="conectarTRex()">Conectar</div>
+      <div class="sb-item" onclick="desconectarTRex()">Desconectar</div>
+    </div>
+  </nav>
+  <main class="contenido">{% block contenido %}{% endblock %}</main>
+</div>
+
+<script>
+  function actualizarEstado(conectado, traficoActivo, numStreams, modoDpdk, estado) {
+    const pTrex    = document.getElementById('pastilla-trex');
+    const pTrafico = document.getElementById('pastilla-trafico');
+    const eTrex    = document.getElementById('estado-trex');
+    const eTrafico = document.getElementById('estado-trafico');
+    const modo     = modoDpdk ? 'DPDK' : 'SW';
+
+    if (estado === 'conectando') {
+      pTrex.classList.remove('apagado');
+      eTrex.textContent = 'ARRANCANDO TREX...';
+    } else if (estado === 'desconectando') {
+      pTrex.classList.remove('apagado');
+      eTrex.textContent = 'PARANDO TREX...';
+    } else if (estado === 'error') {
+      pTrex.classList.add('apagado');
+      eTrex.textContent = 'ERROR';
+    } else if (conectado) {
+      pTrex.classList.remove('apagado');
+      eTrex.textContent = `CONECTADO · ${modo}`;
+    } else {
+      pTrex.classList.add('apagado');
+      eTrex.textContent = 'DESCONECTADO';
+    }
+
+    if (traficoActivo) { pTrafico.classList.remove('apagado'); eTrafico.textContent = `TX ACTIVO · ${numStreams} STREAM(S)`; }
+    else               { pTrafico.classList.add('apagado');    eTrafico.textContent = 'TRÁFICO INACTIVO'; }
+  }
+
+  let _estadoAnterior = null;
+
+  // Sincronizar estado al cargar cada página
+  async function sincronizarEstado() {
+    try {
+      const r = await fetch('/api/estado');
+      const d = await r.json();
+      actualizarEstado(d.conectado, d.trafico_activo, d.num_streams, d.modo_dpdk, d.estado);
+      if (d.conectado) agregarLog('info', `TRex conectado · modo ${d.modo_dpdk ? 'DPDK' : 'Software'} · ${d.num_streams} stream(s)`);
+      _estadoAnterior = d.estado;
+    } catch(e) {}
+  }
+  sincronizarEstado();
+
+  // Polling cada 2 segundos. Detecta transiciones de estado y las refleja en el log.
+  setInterval(async () => {
+    try {
+      const r = await fetch('/api/estado');
+      const d = await r.json();
+      actualizarEstado(d.conectado, d.trafico_activo, d.num_streams, d.modo_dpdk, d.estado);
+
+      if (d.estado !== _estadoAnterior) {
+        if (d.estado === 'conectado')      agregarLog('ok',    'TRex arrancado y conectado en DPDK');
+        else if (d.estado === 'desconectado' && _estadoAnterior === 'desconectando')
+                                            agregarLog('info',  'TRex parado, NICs recuperadas');
+        else if (d.estado === 'error')     agregarLog('error', 'Error: ' + (d.ultimo_error || 'desconocido'));
+        _estadoAnterior = d.estado;
+      }
+    } catch(e) {}
+  }, 2000);
+
+  async function conectarTRex() {
+    agregarLog('info', 'Iniciando arranque de TRex en DPDK...');
+    try {
+      const r = await fetch('/api/conectar', { method:'POST' });
+      const d = await r.json();
+      agregarLog(d.exito ? 'info' : 'error', d.mensaje);
+      // El estado real lo actualiza el polling cada 2s
+    } catch(e) { agregarLog('error', 'Error de red: ' + e.message); }
+  }
+
+  async function desconectarTRex() {
+    agregarLog('info', 'Iniciando parada de TRex...');
+    try {
+      const r = await fetch('/api/desconectar', { method:'POST' });
+      const d = await r.json();
+      agregarLog(d.exito ? 'info' : 'error', d.mensaje);
+    } catch(e) { agregarLog('error', e.message); }
+  }
+
+  function agregarLog(tipo, mensaje) {
+    const c = document.getElementById('consola');
+    if (!c) return;
+    const n = new Date();
+    const hora = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0') + ':' + String(n.getSeconds()).padStart(2,'0');
+    const map = { ok:{clase:'log-ok',label:'[OK]   '}, info:{clase:'log-info',label:'[INFO] '}, warn:{clase:'log-warn',label:'[WARN] '}, error:{clase:'log-error',label:'[ERROR]'} };
+    const t = map[tipo] || map.info;
+    const l = document.createElement('div');
+    l.className = 'log-linea';
+    l.innerHTML = `<span class="log-hora">${hora}</span><span class="${t.clase}">${t.label}</span><span>${mensaje}</span>`;
+    c.appendChild(l);
+    c.scrollTop = c.scrollHeight;
+  }
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

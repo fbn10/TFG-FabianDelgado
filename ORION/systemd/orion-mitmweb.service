@@ -1,0 +1,40 @@
+[Unit]
+Description=ORION - mitmweb transparente con addon ES (incluye nftables REDIRECT)
+After=network-online.target elasticsearch.service
+Wants=network-online.target elasticsearch.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
+Environment=HOME=/root
+
+# Antes de arrancar: aplicar regla nftables REDIRECT
+ExecStartPre=/home/minerva/Escritorio/TFG_Fabian/ORION/tools/mitm_nftables_up.sh
+
+# Proceso principal: mitmweb (transparent + GUI + addon ES)
+ExecStart=/usr/bin/mitmweb \
+  --mode transparent \
+  --listen-host 0.0.0.0 \
+  --listen-port 8888 \
+  --showhost \
+  --ssl-insecure \
+  --set web_open_browser=false \
+  --web-host 0.0.0.0 \
+  --web-port 8081 \
+  -s /home/minerva/Escritorio/TFG_Fabian/ORION/tools/mitm_to_es.py
+
+# Despues de parar: quitar regla nftables (devuelve el trafico directo al Bank)
+ExecStopPost=/home/minerva/Escritorio/TFG_Fabian/ORION/tools/mitm_nftables_down.sh
+
+Restart=on-failure
+RestartSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=orion-mitmweb
+
+[Install]
+WantedBy=multi-user.target

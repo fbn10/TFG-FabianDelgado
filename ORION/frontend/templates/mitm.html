@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Intercepciones HTTPS - ORION{% endblock %}
+{% block page_title %}Intercepciones HTTPS{% endblock %}
+
+{% block content %}
+<section class="page-section">
+  <header class="page-controls">
+    <div class="controls-left">
+      <label>
+        Ventana:
+        <select id="mtWindow">
+          <option value="5m">5 min</option>
+          <option value="15m" selected>15 min</option>
+          <option value="1h">1 hora</option>
+          <option value="24h">24 horas</option>
+        </select>
+      </label>
+      <label>
+        Metodo:
+        <select id="mtMethod">
+          <option value="">Todos</option>
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="DELETE">DELETE</option>
+        </select>
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" id="mtOnlySec">
+        Solo con credenciales/JWT
+      </label>
+    </div>
+    <button class="btn btn-ghost" id="mtRefresh">Refrescar</button>
+  </header>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-label">Peticiones interceptadas</div>
+      <div class="kpi-value" id="mtTotal">--</div>
+      <div class="kpi-sub" id="mtTotalSub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Con credenciales en claro</div>
+      <div class="kpi-value" id="mtCreds">--</div>
+      <div class="kpi-sub">passwords, usuarios, IBAN, ...</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Tokens JWT capturados</div>
+      <div class="kpi-value" id="mtJwt">--</div>
+      <div class="kpi-sub">Authorization Bearer / cookie</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Host mas accedido</div>
+      <div class="kpi-value" id="mtTopHost">--</div>
+      <div class="kpi-sub" id="mtTopHostCount">--</div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Hora</th>
+          <th>Cliente</th>
+          <th>Metodo</th>
+          <th>Host</th>
+          <th>Ruta</th>
+          <th>Status</th>
+          <th>Tipo</th>
+          <th>Tamano</th>
+          <th>Flags</th>
+        </tr>
+      </thead>
+      <tbody id="mtBody">
+        <tr><td colspan="9" class="empty">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<dialog id="mtDetail" class="detail-dialog">
+  <header class="detail-header">
+    <h2 id="mtDetailTitle">Detalle</h2>
+    <button class="btn-close" onclick="document.getElementById('mtDetail').close()">x</button>
+  </header>
+  <div class="detail-body" id="mtDetailBody"></div>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/mitm.js') }}"></script>
+{% endblock %}

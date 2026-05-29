@@ -1,0 +1,13 @@
+[Unit]
+Description=ORION - Refresca threat intel cada 12h
+Requires=orion-threat-intel.service
+
+[Timer]
+# Primera ejecucion 5 min despues del boot, luego cada 12 horas
+OnBootSec=5min
+OnUnitActiveSec=12h
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

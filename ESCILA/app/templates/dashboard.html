@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% block titulo %}Dashboard{% endblock %}
+
+{% block contenido %}
+
+<div class="cab-pagina">
+  <h2>Dashboard <span class="cursor"></span></h2>
+</div>
+
+<!-- TARJETAS -->
+<div class="tarjetas">
+  <div class="tarjeta">
+    <span class="tarjeta-etiqueta">TX Throughput</span>
+    <span class="tarjeta-valor" id="tx-mbps">0.000</span>
+    <span class="tarjeta-unidad" id="tx-mbps-unit">Mbps</span>
+  </div>
+  <div class="tarjeta">
+    <span class="tarjeta-etiqueta">TX Paquetes / seg</span>
+    <span class="tarjeta-valor" id="tx-pps">0</span>
+    <span class="tarjeta-unidad">pkt/s</span>
+  </div>
+  <div class="tarjeta">
+    <span class="tarjeta-etiqueta">RX Throughput</span>
+    <span class="tarjeta-valor" id="rx-mbps">0.000</span>
+    <span class="tarjeta-unidad" id="rx-mbps-unit">Mbps</span>
+  </div>
+  <div class="tarjeta">
+    <span class="tarjeta-etiqueta">Paquetes perdidos</span>
+    <span class="tarjeta-valor" id="drops" style="color:#ff4444;text-shadow:0 0 10px rgba(255,50,50,0.5)">0</span>
+    <span class="tarjeta-unidad">drops totales</span>
+  </div>
+</div>
+
+<!-- PICO MÁXIMO DE SESIÓN -->
+<div class="sec-titulo">Rendimiento de la sesión</div>
+<div class="panel" style="padding:16px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <span style="font-family:'Orbitron',monospace;font-size:9px;letter-spacing:3px;color:var(--cdd)" id="modo-label">
+      MODO: SOFTWARE · INTERFAZ VIRTUAL
+    </span>
+    <div style="display:flex;gap:24px;align-items:center;">
+      <div style="text-align:right;">
+        <span style="font-family:'Orbitron',monospace;font-size:8px;letter-spacing:2px;color:var(--cdd);display:block;">PICO MÁXIMO SESIÓN</span>
+        <span style="font-family:'VT323',monospace;font-size:32px;color:var(--c);" id="pico-mbps">0.000 Mbps</span>
+      </div>
+      <div style="text-align:right;">
+        <span style="font-family:'Orbitron',monospace;font-size:8px;letter-spacing:2px;color:var(--cdd);display:block;">% / 10 Gbps</span>
+        <span style="font-family:'VT323',monospace;font-size:32px;color:var(--c);" id="pct-uso">0.00%</span>
+      </div>
+    </div>
+  </div>
+  <div class="barra-wrap">
+    <div class="barra-fill" id="barra-uso" style="width:0%"></div>
+  </div>
+</div>
+
+<!-- GRÁFICA -->
+<div class="sec-titulo">Throughput TX — últimos 40s</div>
+<div class="panel" style="padding:16px;">
+  <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+    <span style="font-family:'Orbitron',monospace;font-size:8px;letter-spacing:3px;color:var(--cdd)" id="grafica-unidad">Gbps</span>
+    <span style="font-size:9px;color:rgba(232,255,0,0.25);letter-spacing:2px;font-family:'Orbitron',monospace;">█ TX &nbsp; ░ RX</span>
+  </div>
+  <div id="grafica" style="display:flex;align-items:flex-end;gap:2px;height:90px;"></div>
+</div>
+
+<!-- TOTALES -->
+<div class="sec-titulo">Totales de sesión</div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;">
+  <div class="panel" style="text-align:center;margin-bottom:0;">
+    <span class="tarjeta-etiqueta">TX total paquetes</span>
+    <span class="tarjeta-valor" id="tx-total" style="font-size:36px;">0</span>
+  </div>
+  <div class="panel" style="text-align:center;margin-bottom:0;">
+    <span class="tarjeta-etiqueta">RX total paquetes</span>
+    <span class="tarjeta-valor" id="rx-total" style="font-size:36px;">0</span>
+  </div>
+  <div class="panel" style="text-align:center;margin-bottom:0;">
+    <span class="tarjeta-etiqueta">TX total bytes</span>
+    <span class="tarjeta-valor" id="tx-bytes" style="font-size:36px;">0</span>
+    <span class="tarjeta-unidad">MB</span>
+  </div>
+  <div class="panel" style="text-align:center;margin-bottom:0;">
+    <span class="tarjeta-etiqueta">Streams activos</span>
+    <span class="tarjeta-valor" id="num-streams" style="font-size:36px;">0</span>
+  </div>
+</div>
+
+<!-- LOG -->
+<div class="sec-titulo">Log del sistema</div>
+<div class="consola" id="consola">
+  <div class="log-linea">
+    <span class="log-hora">--:--:--</span>
+    <span class="log-info">[INFO] </span>
+    <span>ESCILA iniciado — pulsa Conectar en el sidebar para conectar con TRex</span>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const datosGrafica = new Array(40).fill(0);
+
+  function construirGrafica() {
+    const g = document.getElementById('grafica');
+    g.innerHTML = '';
+    const max = Math.max(...datosGrafica, 0.001);
+    datosGrafica.forEach(v => {
+      const pct = (v/max)*100;
+      const bTX = document.createElement('div');
+      bTX.style.cssText = `flex:1;min-height:2px;border-radius:1px 1px 0 0;background:var(--c);height:${Math.max(pct,1)}%;box-shadow:0 0 4px rgba(232,255,0,0.3);`;
+      const bRX = document.createElement('div');
+      bRX.style.cssText = `flex:1;min-height:1px;border-radius:1px 1px 0 0;background:rgba(232,255,0,0.22);height:${Math.max(pct*0.96,0.5)}%;`;
+      g.appendChild(bTX);
+      g.appendChild(bRX);
+    });
+  }
+  construirGrafica();
+
+  function fmt(n) {
+    if (n >= 1e9) return (n/1e9).toFixed(2)+'G';
+    if (n >= 1e6) return (n/1e6).toFixed(2)+'M';
+    if (n >= 1e3) return (n/1e3).toFixed(1)+'K';
+    return String(Math.round(n));
+  }
+
+  const fuente = new EventSource('/api/estadisticas/stream');
+
+  fuente.onmessage = function(e) {
+    const d = JSON.parse(e.data);
+    actualizarEstado(d.conectado, d.trafico_activo, d.num_streams, d.modo_dpdk);
+
+    // TX Throughput con auto-escala entre Mbps y Gbps.
+    const txGbps = d.tx_gbps || 0;
+    const rxGbps = d.rx_gbps || 0;
+    if (txGbps >= 0.1) {
+      document.getElementById('tx-mbps').textContent      = txGbps.toFixed(3);
+      document.getElementById('tx-mbps-unit').textContent = 'Gbps';
+    } else {
+      document.getElementById('tx-mbps').textContent      = d.tx_mbps.toFixed(3);
+      document.getElementById('tx-mbps-unit').textContent = 'Mbps';
+    }
+    if (rxGbps >= 0.1) {
+      document.getElementById('rx-mbps').textContent      = rxGbps.toFixed(3);
+      document.getElementById('rx-mbps-unit').textContent = 'Gbps';
+    } else {
+      document.getElementById('rx-mbps').textContent      = d.rx_mbps.toFixed(3);
+      document.getElementById('rx-mbps-unit').textContent = 'Mbps';
+    }
+
+    document.getElementById('tx-pps').textContent        = fmt(d.tx_pps);
+    document.getElementById('drops').textContent         = fmt(d.drops);
+    document.getElementById('tx-total').textContent      = fmt(d.tx_paquetes);
+    document.getElementById('rx-total').textContent      = fmt(d.rx_paquetes);
+    document.getElementById('tx-bytes').textContent      = (d.tx_bytes/1e6).toFixed(2);
+    document.getElementById('num-streams').textContent   = d.num_streams;
+
+    // Pico de la sesion. Muestra Gbps cuando supera 1 Gbps, Mbps en caso contrario.
+    const pico = d.max_mbps_sesion || 0;
+    const modo = d.modo_dpdk ? 'DPDK · NIC FÍSICA' : 'SOFTWARE · enp6s0f0/enp6s0f1 · Intel X540 10GbE';
+    document.getElementById('modo-label').textContent = `MODO: ${modo}`;
+    document.getElementById('pico-mbps').textContent  = pico >= 1000
+      ? (pico / 1000).toFixed(3) + ' Gbps'
+      : pico.toFixed(1) + ' Mbps';
+
+    // Barra de rendimiento. Escala fija de 0 a 10 Gbps.
+    const pctBarra = Math.min((txGbps / 10) * 100, 100);
+    document.getElementById('pct-uso').textContent = pctBarra.toFixed(2) + '%';
+    const barra = document.getElementById('barra-uso');
+    barra.style.width = pctBarra + '%';
+    if (pctBarra >= 80) {
+      barra.classList.add('alerta-uso');
+      if (!window._alertaEnviada) {
+        agregarLog('warn', `Rendimiento al ${pctBarra.toFixed(1)}% de 10 Gbps (${txGbps.toFixed(3)} Gbps)`);
+        window._alertaEnviada = true;
+      }
+    } else {
+      barra.classList.remove('alerta-uso');
+      window._alertaEnviada = false;
+    }
+
+    // Gráfica en Gbps
+    datosGrafica.shift();
+    datosGrafica.push(txGbps);
+    construirGrafica();
+  };
+
+  fuente.onerror = function() {};
+
+</script>
+{% endblock %}

@@ -1,0 +1,354 @@
+{% extends 'base.html' %}
+{% block titulo %}Stream Editor{% endblock %}
+
+{% block contenido %}
+
+<div class="cab-pagina">
+  <h2>Stream Editor <span class="cursor"></span></h2>
+</div>
+
+<div class="alerta" id="alerta"></div>
+
+<div class="sec-titulo">Configurar stream</div>
+<div class="panel">
+
+  <div style="font-family:'Orbitron',monospace;font-size:8px;letter-spacing:3px;color:var(--cdd);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--b);">L2 — ETHERNET</div>
+  <div class="fila4">
+    <div class="campo"><label>MAC Origen</label><input type="text" id="mac-origen" value="00:00:00:00:00:01"></div>
+    <div class="campo"><label>MAC Destino</label><input type="text" id="mac-destino" value="ff:ff:ff:ff:ff:ff"></div>
+    <div class="campo"><label>VLAN ID (vacío = sin VLAN)</label><input type="number" id="vlan-id" placeholder="Sin VLAN" min="1" max="4094"></div>
+    <div class="campo"><label>Tamaño paquete (bytes)</label><input type="number" id="tam-paquete" value="64" min="64" max="9000"></div>
+  </div>
+
+  <div style="font-family:'Orbitron',monospace;font-size:8px;letter-spacing:3px;color:var(--cdd);margin-bottom:10px;margin-top:4px;padding-bottom:6px;border-bottom:1px solid var(--b);">L3 — IPv4</div>
+  <div class="fila4">
+    <div class="campo"><label>IP Origen</label><input type="text" id="ip-origen" value="1.1.1.1"></div>
+    <div class="campo"><label>IP Destino</label><input type="text" id="ip-destino" value="2.2.2.2"></div>
+    <div class="campo"><label>TTL</label><input type="number" id="ttl" value="64" min="1" max="255"></div>
+    <div class="campo"><label>ToS / DSCP</label><input type="number" id="tos" value="0" min="0" max="255"></div>
+  </div>
+
+  <div style="font-family:'Orbitron',monospace;font-size:8px;letter-spacing:3px;color:var(--cdd);margin-bottom:10px;margin-top:4px;padding-bottom:6px;border-bottom:1px solid var(--b);">L4 — TRANSPORTE</div>
+  <div class="fila4">
+    <div class="campo">
+      <label>Protocolo</label>
+      <select id="protocolo" onchange="cambiarProtocolo()">
+        <option value="UDP">UDP</option>
+        <option value="TCP">TCP</option>
+        <option value="ICMP">ICMP</option>
+      </select>
+    </div>
+    <div class="campo" id="campo-p-origen"><label>Puerto Origen</label><input type="number" id="puerto-origen" value="1024" min="1" max="65535"></div>
+    <div class="campo" id="campo-p-destino"><label>Puerto Destino</label><input type="number" id="puerto-destino" value="80" min="1" max="65535"></div>
+    <div class="campo" id="campo-flags" style="display:none;">
+      <label>Flags TCP</label>
+      <select id="flags-tcp">
+        <option value="S">SYN</option>
+        <option value="SA">SYN-ACK</option>
+        <option value="A">ACK</option>
+        <option value="PA">PSH-ACK</option>
+        <option value="F">FIN</option>
+        <option value="R">RST</option>
+      </select>
+    </div>
+  </div>
+
+  <div style="font-family:'Orbitron',monospace;font-size:8px;letter-spacing:3px;color:var(--cdd);margin-bottom:10px;margin-top:4px;padding-bottom:6px;border-bottom:1px solid var(--b);">L5 / L6 / L7 — SESIÓN · PRESENTACIÓN · APLICACIÓN</div>
+  <div class="fila2">
+    <div class="campo">
+      <label>Tipo de payload</label>
+      <select id="tipo-l7" onchange="cambiarL7()">
+        <option value="ninguno">Sin payload (relleno de tamaño)</option>
+        <optgroup label="L7 Aplicacion">
+          <option value="http_get">HTTP GET</option>
+          <option value="http_post">HTTP POST</option>
+          <option value="dns">DNS Query</option>
+          <option value="texto">Texto personalizado</option>
+        </optgroup>
+        <optgroup label="L5/L6 Sesion / Presentacion">
+          <option value="tls">TLS Client Hello (simulado)</option>
+          <option value="raw_hex">RAW HEX — control total de bytes</option>
+        </optgroup>
+        <optgroup label="Patrones">
+          <option value="hex">Bytes hexadecimales</option>
+          <option value="patron">Patrón repetido</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="campo"><label>Nombre del stream</label><input type="text" id="nombre-stream" value="stream-1" placeholder="ej: udp-test"></div>
+  </div>
+
+  <div id="l7-texto" class="l7-panel"><div class="fila2"><div class="campo"><label>Texto del payload</label><input type="text" id="payload-texto" value="ESCILA-TEST-PAYLOAD"></div></div></div>
+  <div id="l7-hex"   class="l7-panel"><div class="fila2"><div class="campo"><label>Bytes en hexadecimal (ej: DEADBEEF)</label><input type="text" id="payload-hex" value="DEADBEEF"></div></div></div>
+  <div id="l7-patron" class="l7-panel"><div class="fila2"><div class="campo"><label>Patrón a repetir</label><input type="text" id="payload-patron" value="ABCD"></div></div></div>
+
+  <div id="l7-http" class="l7-panel">
+    <div class="fila3">
+      <div class="campo"><label>Host</label><input type="text" id="http-host" value="www.ejemplo.com"></div>
+      <div class="campo"><label>Ruta</label><input type="text" id="http-ruta" value="/"></div>
+      <div class="campo"><label>User-Agent</label><input type="text" id="http-agente" value="ESCILA/1.0"></div>
+    </div>
+    <div class="fila2" id="campo-post" style="display:none;">
+      <div class="campo"><label>Cuerpo del POST</label><textarea id="http-cuerpo" style="height:60px;">dato=valor&test=escila</textarea></div>
+    </div>
+  </div>
+
+  <div id="l7-dns" class="l7-panel"><div class="fila2"><div class="campo"><label>Dominio a consultar</label><input type="text" id="dns-dominio" value="ejemplo.com"></div></div></div>
+
+  <div id="l7-tls" class="l7-panel">
+    <div style="color:var(--cdd);font-size:12px;padding:10px 0;line-height:1.8;">
+      Se generará un TLS Client Hello simulado con bytes raw de capa 5. Útil para probar firewalls y sistemas DPI.
+    </div>
+  </div>
+
+  <div id="l7-raw" class="l7-panel">
+    <div class="fila2">
+      <div class="campo">
+        <label>Payload completo en HEX — control total byte a byte (L5/L6/L7)</label>
+        <textarea id="raw-hex" style="height:80px;font-size:12px;">DE AD BE EF CA FE BA BE 00 01 02 03</textarea>
+      </div>
+    </div>
+    <div style="color:var(--cdd);font-size:11px;padding:4px 0;">Escribe los bytes en hex separados por espacios. Simula cualquier protocolo de capa 5 o 6.</div>
+  </div>
+
+  <div style="font-family:'Orbitron',monospace;font-size:8px;letter-spacing:3px;color:var(--cdd);margin-bottom:10px;margin-top:14px;padding-bottom:6px;border-bottom:1px solid var(--b);">TASA DE ENVÍO</div>
+  <div class="fila3">
+    <div class="campo">
+      <label>Modo de tasa</label>
+      <select id="modo-tasa">
+        <option value="pps">Paquetes por segundo (PPS)</option>
+        <option value="gbps">Gigabits por segundo (Gbps)</option>
+        <option value="bps">Bits por segundo (BPS)</option>
+        <option value="porcentaje">Porcentaje del enlace (%)</option>
+      </select>
+    </div>
+    <div class="campo"><label>Valor de tasa</label><input type="number" id="valor-tasa" value="1000" min="1"></div>
+    <div class="campo"><label>Nº de paquetes (0 = continuo infinito)</label><input type="number" id="num-paquetes" value="0" min="0" placeholder="0 = continuo"></div>
+  </div>
+
+  <div class="fila-botones" style="margin-top:6px;">
+    <button class="btn btn-verde" onclick="anadirStream()">AÑADIR A LA LISTA</button>
+    <button class="btn btn-secundario" onclick="limpiarFormulario()">LIMPIAR FORMULARIO</button>
+  </div>
+</div>
+
+<div class="sec-titulo">Lista de streams a enviar</div>
+<div style="background:var(--bg2);border:1px solid var(--b);overflow:hidden;margin-bottom:18px;">
+  <table class="tabla">
+    <thead>
+      <tr><th>#</th><th>Nombre</th><th>Proto</th><th>IP Origen / Destino</th><th>Puertos</th><th>L5/L6/L7</th><th>Bytes</th><th>Tasa</th><th>Pkts</th><th>Acción</th></tr>
+    </thead>
+    <tbody id="tbody-streams">
+      <tr id="fila-vacia">
+        <td colspan="10" style="text-align:center;color:var(--cdd);padding:24px;font-family:'Orbitron',monospace;font-size:10px;letter-spacing:2px;">
+          LISTA VACÍA — configura un stream arriba y pulsa AÑADIR
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="sec-titulo">Control de tráfico</div>
+<div class="panel">
+  <div class="fila-botones">
+    <button class="btn btn-principal" onclick="iniciarTrafico()">INICIAR TODOS LOS STREAMS</button>
+    <button class="btn btn-secundario" onclick="pararTrafico()">PARAR TRÁFICO</button>
+    <button class="btn btn-secundario" onclick="resetearPuertos()">RESETEAR PUERTOS</button>
+    <button class="btn btn-peligro" onclick="limpiarLista()">LIMPIAR LISTA</button>
+  </div>
+</div>
+
+<div class="sec-titulo">Log de operaciones</div>
+<div class="consola" id="consola">
+  <div class="log-linea">
+    <span class="log-hora">--:--:--</span>
+    <span class="log-info">[INFO] </span>
+    <span>Stream editor listo — añade streams a la lista y pulsa INICIAR</span>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let listaStreams = [];
+
+  // Cargar lista guardada al iniciar
+  function cargarListaGuardada() {
+    const guardada = localStorage.getItem('listaStreams');
+    if (guardada) {
+      try {
+        listaStreams = JSON.parse(guardada);
+        actualizarTabla();
+        agregarLog('info', `Cargados ${listaStreams.length} stream(s) guardados`);
+      } catch(e) {
+        agregarLog('error', 'Error cargando streams guardados');
+      }
+    }
+  }
+
+  // Guardar lista en localStorage
+  function guardarLista() {
+    localStorage.setItem('listaStreams', JSON.stringify(listaStreams));
+  }
+
+  // Cargar lista al iniciar página
+  window.addEventListener('DOMContentLoaded', cargarListaGuardada);
+
+  function cambiarProtocolo() {
+    const p = document.getElementById('protocolo').value;
+    document.getElementById('campo-p-origen').style.display  = p === 'ICMP' ? 'none' : 'block';
+    document.getElementById('campo-p-destino').style.display = p === 'ICMP' ? 'none' : 'block';
+    document.getElementById('campo-flags').style.display     = p === 'TCP'  ? 'block' : 'none';
+  }
+
+  function cambiarL7() {
+    const t = document.getElementById('tipo-l7').value;
+    document.querySelectorAll('.l7-panel').forEach(p => p.classList.remove('visible'));
+    if (t === 'texto')     document.getElementById('l7-texto').classList.add('visible');
+    if (t === 'hex')       document.getElementById('l7-hex').classList.add('visible');
+    if (t === 'patron')    document.getElementById('l7-patron').classList.add('visible');
+    if (t === 'dns')       document.getElementById('l7-dns').classList.add('visible');
+    if (t === 'tls')       document.getElementById('l7-tls').classList.add('visible');
+    if (t === 'raw_hex')   document.getElementById('l7-raw').classList.add('visible');
+    if (t === 'http_get')  { document.getElementById('l7-http').classList.add('visible'); document.getElementById('campo-post').style.display='none'; }
+    if (t === 'http_post') { document.getElementById('l7-http').classList.add('visible'); document.getElementById('campo-post').style.display='block'; }
+  }
+
+  function recogerConfig() {
+    return {
+      nombre         : document.getElementById('nombre-stream').value || `stream-${listaStreams.length+1}`,
+      mac_origen     : document.getElementById('mac-origen').value,
+      mac_destino    : document.getElementById('mac-destino').value,
+      vlan_id        : document.getElementById('vlan-id').value || null,
+      tam_paquete    : document.getElementById('tam-paquete').value || '64',
+      ip_origen      : document.getElementById('ip-origen').value,
+      ip_destino     : document.getElementById('ip-destino').value,
+      ttl            : document.getElementById('ttl').value || '64',
+      tos            : document.getElementById('tos').value || '0',
+      protocolo      : document.getElementById('protocolo').value,
+      puerto_origen  : document.getElementById('puerto-origen').value || '1024',
+      puerto_destino : document.getElementById('puerto-destino').value || '80',
+      flags_tcp      : document.getElementById('flags-tcp').value,
+      tipo_l7        : document.getElementById('tipo-l7').value,
+      payload_texto  : document.getElementById('payload-texto').value,
+      payload_hex    : document.getElementById('payload-hex').value,
+      payload_patron : document.getElementById('payload-patron').value,
+      http_host      : document.getElementById('http-host').value,
+      http_ruta      : document.getElementById('http-ruta').value,
+      http_agente    : document.getElementById('http-agente').value,
+      http_cuerpo    : document.getElementById('http-cuerpo').value,
+      dns_dominio    : document.getElementById('dns-dominio').value,
+      raw_hex        : document.getElementById('raw-hex').value,
+      modo_tasa      : document.getElementById('modo-tasa').value,
+      valor_tasa     : document.getElementById('valor-tasa').value || '1000',
+      num_paquetes   : document.getElementById('num-paquetes').value || '0',
+    };
+  }
+
+  function anadirStream() {
+    const c = recogerConfig();
+    listaStreams.push(c);
+    actualizarTabla();
+    guardarLista();
+    agregarLog('ok', `"${c.nombre}" añadido — ${listaStreams.length} stream(s) en lista`);
+    mostrarAlerta('exito', `Stream "${c.nombre}" añadido a la lista`);
+    document.getElementById('nombre-stream').value = `stream-${listaStreams.length+1}`;
+  }
+
+  function eliminarStream(i) {
+    const nombre = listaStreams[i].nombre;
+    listaStreams.splice(i, 1);
+    actualizarTabla();
+    guardarLista();
+    agregarLog('info', `"${nombre}" eliminado de la lista`);
+  }
+
+  function actualizarTabla() {
+    const tbody = document.getElementById('tbody-streams');
+    if (listaStreams.length === 0) {
+      tbody.innerHTML = '';
+      tbody.appendChild(document.getElementById('fila-vacia'));
+      return;
+    }
+    const l7map = { ninguno:'—', texto:'Texto', hex:'HEX', patron:'Patrón', http_get:'HTTP GET', http_post:'HTTP POST', dns:'DNS', tls:'TLS Hello', raw_hex:'RAW HEX' };
+    tbody.innerHTML = '';
+    listaStreams.forEach((s,i) => {
+      const puertos = s.protocolo === 'ICMP' ? '—' : `${s.puerto_origen} / ${s.puerto_destino}`;
+      const npkts   = parseInt(s.num_paquetes) > 0 ? s.num_paquetes : '∞';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="color:var(--cdd)">${i+1}</td>
+        <td style="font-weight:bold">${s.nombre}</td>
+        <td><span class="etiqueta et-${s.protocolo.toLowerCase()}">${s.protocolo}</span></td>
+        <td style="font-size:12px">${s.ip_origen} -> ${s.ip_destino}</td>
+        <td style="font-size:12px">${puertos}</td>
+        <td><span class="etiqueta" style="border-color:rgba(232,255,0,0.3);color:var(--cd);font-size:8px">${l7map[s.tipo_l7]||'—'}</span></td>
+        <td style="font-size:12px">${s.tam_paquete}B</td>
+        <td style="font-size:12px">${s.valor_tasa} ${s.modo_tasa === 'gbps' ? 'Gbps' : s.modo_tasa}</td>
+        <td style="font-size:12px">${npkts}</td>
+        <td><span onclick="eliminarStream(${i})" style="cursor:pointer;color:#ff5555;font-size:10px;font-family:'Orbitron',monospace;letter-spacing:1px;border:1px solid rgba(255,50,50,0.3);padding:2px 8px;">QUITAR</span></td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function iniciarTrafico() {
+    if (listaStreams.length === 0) { mostrarAlerta('error','Lista vacía — añade streams primero'); return; }
+    mostrarAlerta('exito', `Iniciando ${listaStreams.length} stream(s)...`);
+    try {
+      const r = await fetch('/api/trafico/iniciar', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ streams: listaStreams })
+      });
+      const d = await r.json();
+      mostrarAlerta(d.exito?'exito':'error', d.exito?`${d.mensaje}`:`${d.mensaje}`);
+      agregarLog(d.exito?'ok':'error', d.mensaje);
+    } catch(e) { mostrarAlerta('error','Error: '+e.message); }
+  }
+
+  async function pararTrafico() {
+    try {
+      const r = await fetch('/api/trafico/parar', { method:'POST' });
+      const d = await r.json();
+      mostrarAlerta(d.exito?'exito':'error', d.mensaje);
+      agregarLog(d.exito?'info':'error', d.mensaje);
+    } catch(e) { mostrarAlerta('error', e.message); }
+  }
+
+  async function resetearPuertos() {
+    try {
+      const r = await fetch('/api/trafico/resetear', { method:'POST' });
+      const d = await r.json();
+      mostrarAlerta(d.exito?'exito':'error', d.mensaje);
+      agregarLog(d.exito?'ok':'error', d.mensaje);
+    } catch(e) { mostrarAlerta('error', e.message); }
+  }
+
+  function limpiarLista() {
+    listaStreams = [];
+    actualizarTabla();
+    guardarLista();
+    agregarLog('info','Lista de streams vaciada');
+  }
+
+  function limpiarFormulario() {
+    document.getElementById('ip-origen').value      = '1.1.1.1';
+    document.getElementById('ip-destino').value     = '2.2.2.2';
+    document.getElementById('puerto-origen').value  = '1024';
+    document.getElementById('puerto-destino').value = '80';
+    document.getElementById('valor-tasa').value     = '1000';
+    document.getElementById('num-paquetes').value   = '0';
+    document.getElementById('vlan-id').value        = '';
+    document.getElementById('tipo-l7').value        = 'ninguno';
+    cambiarL7();
+    agregarLog('info','Formulario limpiado');
+  }
+
+  function mostrarAlerta(tipo, msg) {
+    const a = document.getElementById('alerta');
+    a.textContent = msg;
+    a.className   = `alerta visible ${tipo === 'error' ? 'error' : 'exito'}`;
+    setTimeout(() => a.classList.remove('visible'), 5000);
+  }
+</script>
+{% endblock %}

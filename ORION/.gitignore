@@ -1,0 +1,47 @@
+# Entorno virtual de Python: se regenera con `pip install -r requirements.txt`
+venv/
+.venv/
+env/
+
+# Cache de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Backups y temporales
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Claves y certificados generados (el banco regenera su CA al primer arranque)
+demo/orion_bank/certs/*.key
+demo/orion_bank/certs/*.crt
+demo/orion_bank/certs/*.csr
+demo/orion_bank/certs/*.srl
+demo/orion_bank/certs/*.ext
+
+# Secretos locales
+*.env
+/etc/orion/
+
+# Logs y bases de datos locales (si alguna vez se generan)
+*.log
+*.sqlite
+*.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.iml
+
+# Salida de pyreverse y otros generadores
+classes_*.puml
+packages_*.puml
+classes_*.png
+packages_*.png
+classes_*.svg
+packages_*.svg
+classes_*.mmd
+packages_*.mmd

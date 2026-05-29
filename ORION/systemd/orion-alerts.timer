@@ -1,0 +1,10 @@
+[Unit]
+Description=ORION - Lanza correlador de alertas cada minuto
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=1min
+Unit=orion-alerts.service
+
+[Install]
+WantedBy=timers.target

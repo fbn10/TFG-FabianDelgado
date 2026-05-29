@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Resumen - ORION{% endblock %}
+{% block page_title %}Resumen y estado del sistema{% endblock %}
+
+{% block content %}
+
+<div class="cards-grid">
+
+  <div class="card">
+    <div class="card-title">Flask (control plane)</div>
+    <div class="card-value" style="color: var(--turquesa);">OK</div>
+    <div class="card-sub">si ves esta pagina, esta vivo</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Elasticsearch</div>
+    <div class="card-value" id="cardEs">—</div>
+    <div class="card-sub" id="cardEsSub">consultando...</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">XDP NAT</div>
+    <div class="card-value" id="cardXdp">—</div>
+    <div class="card-sub" id="cardXdpSub">comprobando...</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Reglas activas</div>
+    <div class="card-value" id="cardRules">—</div>
+    <div class="card-sub">total enabled = true (orion-rules)</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Mappings NAT</div>
+    <div class="card-value" id="cardNats">—</div>
+    <div class="card-sub">orion-nat-mappings</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Trafico capturado</div>
+    <div class="card-value" id="cardPackets">—</div>
+    <div class="card-sub">total en packetbeat-*</div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Anima el contador con easing solo en la primera carga.
+  function animateNumber(el, target) {
+    const duration = 600;
+    const start = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - (1 - t) * (1 - t);
+      const v = Math.floor(target * eased);
+      el.textContent = v.toLocaleString();
+      if (t < 1) requestAnimationFrame(step);
+      else el.textContent = target.toLocaleString();
+    };
+    requestAnimationFrame(step);
+  }
+
+  // Pequeno flash de color cuando cambia un valor para llamar la atencion.
+  function flash(el) {
+    el.style.transition = "color 0.2s";
+    const orig = el.style.color;
+    el.style.color = "var(--celeste)";
+    setTimeout(() => { el.style.color = orig; }, 250);
+  }
+
+  // Estado en memoria para detectar cambios entre refrescos.
+  const lastValues = {};
+  let firstLoad = true;
+
+  function updateNumber(elId, newValue) {
+    const el = document.getElementById(elId);
+    if (firstLoad) {
+      animateNumber(el, newValue);
+    } else if (lastValues[elId] !== newValue) {
+      el.textContent = newValue.toLocaleString();
+      flash(el);
+    }
+    lastValues[elId] = newValue;
+  }
+
+  // Pintar XDP
+  function paintXdp(xdp) {
+    const xdpEl = document.getElementById("cardXdp");
+    const xdpSub = document.getElementById("cardXdpSub");
+    if (xdp && xdp.any_attached) {
+      xdpEl.textContent = "Activo";
+      xdpEl.style.color = "var(--turquesa)";
+      const ifaces = Object.entries(xdp.by_interface || {})
+        .filter(([k, v]) => v)
+        .map(([k]) => k).join(", ");
+      xdpSub.textContent = "atachado en " + (ifaces || "?");
+    } else {
+      xdpEl.textContent = "Inactivo";
+      xdpEl.style.color = "var(--err)";
+      xdpSub.textContent = "ningun programa XDP cargado";
+    }
+  }
+
+  // Refresco periodico
+  async function refresh() {
+    try {
+      const d = await fetch("/api/stats/summary").then(r => r.json());
+      updateNumber("cardRules", d.rules_active);
+      updateNumber("cardPackets", d.packetbeat_total);
+      updateNumber("cardNats", d.nat_mappings);
+      paintXdp(d.xdp);
+    } catch (e) {
+      ["cardRules", "cardPackets", "cardNats", "cardXdp"].forEach(id => {
+        document.getElementById(id).textContent = "err";
+      });
+    }
+
+    try {
+      const h = await fetch("/api/health").then(r => r.json());
+      const esEl  = document.getElementById("cardEs");
+      const esSub = document.getElementById("cardEsSub");
+      if (h.status === "ok") {
+        esEl.textContent = "OK";
+        esEl.style.color = "var(--turquesa)";
+        esSub.textContent = h.es_cluster
+          ? `cluster ${h.es_cluster}` + (h.es_version ? ` v${h.es_version}` : "")
+          : "conectado";
+      } else {
+        esEl.textContent = "KO";
+        esEl.style.color = "var(--err)";
+        esSub.textContent = h.detail || "no responde";
+      }
+    } catch (e) {
+      const esEl  = document.getElementById("cardEs");
+      esEl.textContent = "KO";
+      esEl.style.color = "var(--err)";
+      document.getElementById("cardEsSub").textContent = "no responde";
+    }
+
+    firstLoad = false;
+  }
+
+  // Primera carga inmediata + polling cada 3 segundos
+  refresh();
+  setInterval(refresh, 3000);
+</script>
+{% endblock %}

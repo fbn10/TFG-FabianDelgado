@@ -1,0 +1,27 @@
+# Dependencias Python de ESCILA.
+#
+# Instalación dentro de un entorno virtual:
+#   python3 -m venv venv
+#   source venv/bin/activate
+#   pip install -r requirements.txt
+#
+# La librería STLClient de TRex no se instala con pip. Viene incluida en la
+# propia distribución de TRex 3.08, en la ruta:
+#   /home/minerva/Escritorio/TFG_Fabian/ESCILA/v3.08/automation/trex_control_plane/interactive/
+# El gestor trex_manager.py añade esa ruta a sys.path al cargarse.
+
+# Servidor web
+flask>=3.1.0
+
+# Dependencias internas de Flask (se instalan automáticamente con flask)
+werkzeug>=3.1.0
+jinja2>=3.1.0
+click>=8.1.0
+itsdangerous>=2.2.0
+blinker>=1.9.0
+markupsafe>=2.1.0
+
+# Scapy para la construcción de paquetes de capa 2 a 7.
+# TRex incluye su propia copia, pero esta es necesaria para los imports
+# directos que hace trex_manager.py al definir los streams.
+scapy>=2.5.0

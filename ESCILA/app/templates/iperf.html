@@ -1,0 +1,534 @@
+{% extends 'base.html' %}
+{% block titulo %}iperf3{% endblock %}
+
+{% block contenido %}
+
+<div class="cab-pagina">
+  <h2>iperf3 <span class="cursor"></span></h2>
+</div>
+
+<div class="alerta" id="alerta-iperf"></div>
+
+<!-- TARJETAS EN VIVO -->
+<div class="tarjetas">
+  <div class="tarjeta">
+    <span class="tarjeta-etiqueta">Throughput actual</span>
+    <span class="tarjeta-valor" id="ip-bps">0.000</span>
+    <span class="tarjeta-unidad" id="ip-bps-unit">Gbps</span>
+  </div>
+  <div class="tarjeta">
+    <span class="tarjeta-etiqueta">Transferido total</span>
+    <span class="tarjeta-valor" id="ip-tx">0.00</span>
+    <span class="tarjeta-unidad" id="ip-tx-unit">MB</span>
+  </div>
+  <div class="tarjeta">
+    <span class="tarjeta-etiqueta">Retransmisiones</span>
+    <span class="tarjeta-valor" id="ip-retr" style="color:#ff4444;text-shadow:0 0 10px rgba(255,50,50,0.5)">0</span>
+    <span class="tarjeta-unidad">retr TCP</span>
+  </div>
+  <div class="tarjeta">
+    <span class="tarjeta-etiqueta">Intervalo actual</span>
+    <span class="tarjeta-valor" id="ip-intervalo-disp" style="font-size:38px;">—</span>
+    <span class="tarjeta-unidad">sec</span>
+  </div>
+</div>
+
+<!-- BARRA 0–10 Gbps -->
+<div class="sec-titulo">Rendimiento — escala 0 a 10 Gbps</div>
+<div class="panel" style="padding:16px;">
+  <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+    <span style="font-family:'Orbitron',monospace;font-size:9px;letter-spacing:3px;color:var(--cdd)" id="ip-modo-disp">MODO: —</span>
+    <span style="font-family:'Orbitron',monospace;font-size:9px;letter-spacing:3px;color:var(--cdd)">% / 10 Gbps: <span id="ip-pct" style="color:var(--c);font-family:'VT323',monospace;font-size:18px;">0.00%</span></span>
+  </div>
+  <div class="barra-wrap">
+    <div class="barra-fill" id="ip-barra" style="width:0%"></div>
+  </div>
+</div>
+
+<!-- GRÁFICA -->
+<div class="sec-titulo">Histórico — últimos 60 intervalos</div>
+<div class="panel" style="padding:16px;">
+  <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+    <span style="font-family:'Orbitron',monospace;font-size:8px;letter-spacing:3px;color:var(--cdd)" id="ip-graf-eje">Gbps · escala adaptativa</span>
+    <span style="font-size:9px;color:var(--cdd);letter-spacing:2px;font-family:'Orbitron',monospace;">
+      min: <span id="ip-min" style="color:#ff8888;">—</span> &nbsp;·&nbsp;
+      avg: <span id="ip-avg" style="color:var(--c);">—</span> &nbsp;·&nbsp;
+      max: <span id="ip-max" style="color:#00ff88;">—</span>
+    </span>
+  </div>
+  <div id="ip-grafica" style="display:flex;align-items:flex-end;gap:2px;height:130px;position:relative;border-bottom:1px solid var(--b);border-left:1px solid var(--b);padding:2px;"></div>
+  <div style="margin-top:6px;display:flex;justify-content:space-between;font-size:9px;color:var(--cdd);font-family:'Orbitron',monospace;letter-spacing:2px;">
+    <span>mas antiguo</span>
+    <span>mas reciente</span>
+  </div>
+</div>
+
+<!-- TABLA INTERVALOS EN VIVO -->
+<div class="sec-titulo">Intervalos en vivo</div>
+<div style="background:var(--bg2);border:1px solid var(--b);margin-bottom:18px;max-height:420px;overflow-y:auto;overflow-x:hidden;" id="ip-tabla-wrap">
+  <table class="tabla" id="ip-tabla" style="margin:0;">
+    <thead>
+      <tr>
+        <th style="position:sticky;top:0;z-index:2;">#</th>
+        <th style="position:sticky;top:0;z-index:2;">Intervalo (sec)</th>
+        <th style="position:sticky;top:0;z-index:2;">Transfer</th>
+        <th style="position:sticky;top:0;z-index:2;">Bitrate</th>
+        <th style="position:sticky;top:0;z-index:2;">Retr</th>
+        <th style="position:sticky;top:0;z-index:2;">Cwnd</th>
+        <th style="position:sticky;top:0;z-index:2;">Tipo</th>
+      </tr>
+    </thead>
+    <tbody id="ip-tabla-body">
+      <tr id="ip-tabla-vacia">
+        <td colspan="7" style="text-align:center;color:var(--cdd);padding:24px;font-family:'Orbitron',monospace;font-size:10px;letter-spacing:2px;">
+          ESPERANDO INTERVALOS... LANZA UN TEST
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<style>
+  @keyframes destelloFila {
+    0%   { background: rgba(232,255,0,0.40); }
+    100% { background: transparent; }
+  }
+  .ip-fila-nueva { animation: destelloFila 1.5s ease-out; }
+  .ip-fila-sender   td { color:#00ff88 !important; font-weight:bold; }
+  .ip-fila-receiver td { color:#00ddff !important; font-weight:bold; }
+  #ip-bps, #ip-tx, #ip-retr, #ip-intervalo-disp { transition: text-shadow 0.2s; }
+  .ip-pulse { text-shadow: 0 0 18px var(--c), 0 0 32px rgba(232,255,0,0.6) !important; }
+</style>
+
+<!-- MODO -->
+<div class="sec-titulo">Modo de operación</div>
+<div class="panel">
+  <div class="fila3">
+    <div class="campo">
+      <label>Modo</label>
+      <select id="ip-modo" onchange="cambiarModo()">
+        <option value="cliente">Cliente (-c) — envía a un servidor</option>
+        <option value="servidor">Servidor (-s) — espera conexiones</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label>Interfaz de salida / bind</label>
+      <select id="ip-interfaz">
+        <option value="">Auto (cualquier interfaz)</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label>Puerto (-p)</label>
+      <input type="number" id="ip-puerto" value="5201" min="1" max="65535">
+    </div>
+  </div>
+</div>
+
+<!-- PARÁMETROS DE CLIENTE -->
+<div id="panel-cliente">
+  <div class="sec-titulo">Parámetros de cliente</div>
+  <div class="panel">
+    <div class="fila3">
+      <div class="campo">
+        <label>IP destino (-c)</label>
+        <input type="text" id="ip-host" value="10.0.3.2" placeholder="ej: 10.0.3.2">
+      </div>
+      <div class="campo">
+        <label>Duración -t (segundos, máx 86400)</label>
+        <input type="number" id="ip-duracion" value="10" min="1" max="86400">
+      </div>
+      <div class="campo">
+        <label>Intervalo de reporte -i (segundos)</label>
+        <input type="number" id="ip-intervalo" value="1" min="0.1" step="0.1">
+      </div>
+    </div>
+
+    <div class="fila4">
+      <div class="campo">
+        <label>Streams paralelos (-P)</label>
+        <input type="number" id="ip-streams" value="1" min="1" max="128">
+      </div>
+      <div class="campo">
+        <label>Tamaño buffer -l (ej: 1448, 8K, 1M)</label>
+        <input type="text" id="ip-buffer" placeholder="vacío = default">
+      </div>
+      <div class="campo">
+        <label>Ancho de banda -b (ej: 1G, 500M)</label>
+        <input type="text" id="ip-banda" placeholder="vacío = ilimitado">
+      </div>
+      <div class="campo">
+        <label>Opciones</label>
+        <div style="display:flex;flex-direction:column;gap:6px;padding-top:4px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:1px;color:var(--cd);text-transform:none;">
+            <input type="checkbox" id="ip-udp" style="width:14px;height:14px;">UDP (-u)
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:1px;color:var(--cd);text-transform:none;">
+            <input type="checkbox" id="ip-reverse" style="width:14px;height:14px;">Reverse (-R)
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTROL -->
+<div class="sec-titulo">Control</div>
+<div class="panel">
+  <div class="fila-botones">
+    <button class="btn btn-principal" onclick="iniciarIperf()">INICIAR IPERF</button>
+    <button class="btn btn-peligro" onclick="pararIperf()">PARAR</button>
+    <button class="btn btn-secundario" onclick="limpiarTodo()">LIMPIAR TODO</button>
+    <button class="btn btn-verde" onclick="presetMaxSaturacion(true)" title="UDP -b 10G -l 8192 -P 4 -t 180 a 10.0.3.2 desde 10.0.3.1">MAXIMA SATURACION UDP</button>
+    <button class="btn btn-secundario" onclick="presetMaxSaturacion(false)" title="Solo rellena los campos sin iniciar">Aplicar preset</button>
+  </div>
+  <div style="margin-top:14px;padding:10px 14px;border:1px solid var(--b);background:#000;font-size:12px;color:var(--cdd);font-family:'Share Tech Mono',monospace;">
+    <span style="color:var(--cdd);">COMANDO: </span><span id="ip-comando" style="color:var(--c);">—</span>
+  </div>
+</div>
+
+<!-- SALIDA -->
+<div class="sec-titulo">Salida de iperf3</div>
+<div class="consola" id="ip-salida" style="height:340px;font-family:'Share Tech Mono',monospace;">
+  <div class="log-linea">
+    <span class="log-info">[INFO]</span>
+    <span>Esperando para lanzar iperf3...</span>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let _ultimaLinea = 0;
+
+  async function cargarInterfaces() {
+    try {
+      const r = await fetch('/api/iperf/interfaces');
+      const datos = await r.json();
+      const sel = document.getElementById('ip-interfaz');
+      sel.innerHTML = '<option value="">Auto (cualquier interfaz)</option>';
+      datos.forEach(i => {
+        const opt = document.createElement('option');
+        opt.value = i.ip;
+        opt.textContent = `${i.interfaz} — ${i.ip}`;
+        sel.appendChild(opt);
+      });
+    } catch(e) {}
+  }
+  cargarInterfaces();
+
+  function cambiarModo() {
+    const modo = document.getElementById('ip-modo').value;
+    document.getElementById('panel-cliente').style.display = modo === 'cliente' ? 'block' : 'none';
+  }
+
+  function recogerConfig() {
+    return {
+      modo        : document.getElementById('ip-modo').value,
+      host        : document.getElementById('ip-host').value.trim(),
+      puerto      : document.getElementById('ip-puerto').value,
+      duracion    : document.getElementById('ip-duracion').value,
+      intervalo   : document.getElementById('ip-intervalo').value,
+      streams     : document.getElementById('ip-streams').value,
+      udp         : document.getElementById('ip-udp').checked,
+      reverse     : document.getElementById('ip-reverse').checked,
+      tam_buffer  : document.getElementById('ip-buffer').value.trim(),
+      ancho_banda : document.getElementById('ip-banda').value.trim(),
+      bind_ip     : document.getElementById('ip-interfaz').value,
+    };
+  }
+
+  // Preset de maxima saturacion UDP. Equivale a ejecutar manualmente:
+  //   iperf3 -c 10.0.3.2 -u -b 10G -l 8192 -P 4 -t 180 -B 10.0.3.1
+  function presetMaxSaturacion(lanzar) {
+    document.getElementById('ip-modo').value      = 'cliente';
+    cambiarModo();
+    document.getElementById('ip-host').value      = '10.0.3.2';
+    document.getElementById('ip-puerto').value    = '5201';
+    document.getElementById('ip-duracion').value  = '180';
+    document.getElementById('ip-intervalo').value = '1';
+    document.getElementById('ip-streams').value   = '4';
+    document.getElementById('ip-udp').checked     = true;
+    document.getElementById('ip-reverse').checked = false;
+    document.getElementById('ip-buffer').value    = '8192';
+    document.getElementById('ip-banda').value     = '10G';
+
+    // Seleccionar la interfaz cuya IP sea 10.0.3.1 (si existe)
+    const sel = document.getElementById('ip-interfaz');
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === '10.0.3.1') { sel.selectedIndex = i; break; }
+    }
+
+    mostrarAlerta('exito', 'Preset MÁXIMA SATURACIÓN UDP aplicado (10G · 4 streams · 8192B · 180s = 3 min)');
+    if (lanzar) iniciarIperf();
+  }
+
+  async function iniciarIperf() {
+    // Limpiar todo antes de iniciar un nuevo test
+    limpiarTodo();
+    const cfg = recogerConfig();
+    try {
+      const r = await fetch('/api/iperf/iniciar', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(cfg)
+      });
+      const d = await r.json();
+      mostrarAlerta(d.exito ? 'exito' : 'error', d.mensaje);
+    } catch(e) { mostrarAlerta('error', 'Error: ' + e.message); }
+  }
+
+  async function pararIperf() {
+    try {
+      const r = await fetch('/api/iperf/parar', { method:'POST' });
+      const d = await r.json();
+      mostrarAlerta(d.exito ? 'exito' : 'error', d.mensaje);
+    } catch(e) { mostrarAlerta('error', e.message); }
+  }
+
+  function limpiarTodo() {
+    // Consola
+    document.getElementById('ip-salida').innerHTML = '';
+
+    // Tabla de intervalos: restauramos el mensaje de tabla vacia.
+    const tbody = document.getElementById('ip-tabla-body');
+    tbody.innerHTML = `
+      <tr id="ip-tabla-vacia">
+        <td colspan="7" style="text-align:center;color:var(--cdd);padding:24px;font-family:'Orbitron',monospace;font-size:10px;letter-spacing:2px;">
+          ESPERANDO INTERVALOS... LANZA UN TEST
+        </td>
+      </tr>`;
+    document.getElementById('ip-tabla-wrap').scrollTop = 0;
+
+    // Tarjetas
+    document.getElementById('ip-bps').textContent      = '0.000';
+    document.getElementById('ip-bps-unit').textContent = 'Gbps';
+    document.getElementById('ip-tx').textContent       = '0.00';
+    document.getElementById('ip-tx-unit').textContent  = 'MB';
+    document.getElementById('ip-retr').textContent     = '0';
+    document.getElementById('ip-intervalo-disp').textContent = '—';
+
+    // Barra
+    document.getElementById('ip-pct').textContent  = '0.00%';
+    const barra = document.getElementById('ip-barra');
+    barra.style.width = '0%';
+    barra.classList.remove('alerta-uso');
+
+    // Gráfica
+    document.getElementById('ip-grafica').innerHTML = '';
+    document.getElementById('ip-min').textContent = '—';
+    document.getElementById('ip-avg').textContent = '—';
+    document.getElementById('ip-max').textContent = '—';
+    document.getElementById('ip-graf-eje').textContent = 'Gbps · escala adaptativa';
+
+    // Comando
+    document.getElementById('ip-comando').textContent = '—';
+
+    // Variables de estado locales
+    _ultimaLinea = 0;
+    _lastIntervalos = 0;
+    _lastBps = -1;
+  }
+
+  function dibujarGrafica(datos) {
+    const g = document.getElementById('ip-grafica');
+    g.innerHTML = '';
+    const lblMin = document.getElementById('ip-min');
+    const lblMax = document.getElementById('ip-max');
+    const lblAvg = document.getElementById('ip-avg');
+    const lblEje = document.getElementById('ip-graf-eje');
+    if (!datos || datos.length === 0) {
+      lblMin.textContent = '—'; lblMax.textContent = '—'; lblAvg.textContent = '—';
+      return;
+    }
+    const gbps = datos.map(b => b / 1e9);
+    const min = Math.min(...gbps);
+    const max = Math.max(...gbps);
+    const avg = gbps.reduce((a,b)=>a+b,0) / gbps.length;
+
+    // Etiquetas
+    const fmt = v => v >= 1 ? v.toFixed(3) + ' Gbps' : (v*1000).toFixed(1) + ' Mbps';
+    lblMin.textContent = fmt(min);
+    lblMax.textContent = fmt(max);
+    lblAvg.textContent = fmt(avg);
+
+    // Escala amplificada: muestra el rango real entre min y max,
+    // con un margen del 15 por ciento por arriba y por abajo.
+    let rango = max - min;
+    if (rango < max * 0.02) rango = max * 0.02;  // mínimo 2% de rango para que se vea algo
+    const minView = Math.max(0, min - rango * 0.20);
+    const maxView = max + rango * 0.10;
+    const span = maxView - minView;
+
+    lblEje.textContent = `Gbps · ${minView.toFixed(2)} a ${maxView.toFixed(2)} (rango amplificado)`;
+
+    gbps.forEach((v, i) => {
+      const pct = ((v - minView) / span) * 100;
+      const altura = Math.max(Math.min(pct, 100), 1);
+
+      // Color según posición vs avg: por debajo = rojizo, por encima = verdoso
+      let color = 'var(--c)';
+      if (v < avg - rango * 0.15)      color = '#ff8866';
+      else if (v > avg + rango * 0.15) color = '#88ff88';
+
+      const b = document.createElement('div');
+      b.title = `${i+1}: ${fmt(v)}`;
+      b.style.cssText = `flex:1;min-height:2px;border-radius:1px 1px 0 0;background:${color};height:${altura}%;box-shadow:0 0 6px ${color}55;transition:height 0.3s ease;`;
+      g.appendChild(b);
+    });
+  }
+
+  // Helpers
+  function fmtBitrate(bps) {
+    if (bps >= 1e9) return (bps/1e9).toFixed(3) + ' Gbits/sec';
+    if (bps >= 1e6) return (bps/1e6).toFixed(2) + ' Mbits/sec';
+    if (bps >= 1e3) return (bps/1e3).toFixed(1) + ' Kbits/sec';
+    return bps.toFixed(0) + ' bits/sec';
+  }
+  function fmtBytes(b) {
+    if (b >= 1e9) return (b/1e9).toFixed(2) + ' GBytes';
+    if (b >= 1e6) return (b/1e6).toFixed(1) + ' MBytes';
+    if (b >= 1e3) return (b/1e3).toFixed(1) + ' KBytes';
+    return b.toFixed(0) + ' B';
+  }
+  function pulse(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('ip-pulse');
+    void el.offsetWidth;  // forzar reflow
+    el.classList.add('ip-pulse');
+    setTimeout(() => el.classList.remove('ip-pulse'), 200);
+  }
+
+  let _lastBps = -1;
+  let _lastIntervalos = 0;
+
+  function actualizarTabla(intervalos) {
+    const tbody = document.getElementById('ip-tabla-body');
+    if (intervalos.length === 0) return;
+
+    // Si es la primera vez, limpiar mensaje vacío
+    if (_lastIntervalos === 0) {
+      tbody.innerHTML = '';
+    }
+
+    // Si reset (test nuevo), repintar todo
+    if (intervalos.length < _lastIntervalos) {
+      tbody.innerHTML = '';
+      _lastIntervalos = 0;
+    }
+
+    // Añadir solo las filas nuevas
+    const nuevas = intervalos.slice(_lastIntervalos);
+    nuevas.forEach((iv, idx) => {
+      const numFila = _lastIntervalos + idx + 1;
+      const tr = document.createElement('tr');
+      tr.className = 'ip-fila-nueva';
+      if (iv.tipo === 'sender')   tr.classList.add('ip-fila-sender');
+      if (iv.tipo === 'receiver') tr.classList.add('ip-fila-receiver');
+      tr.innerHTML = `
+        <td style="color:var(--cdd)">${numFila}</td>
+        <td style="font-family:'VT323',monospace;font-size:16px;">${iv.intervalo} sec</td>
+        <td>${fmtBytes(iv.transfer)}</td>
+        <td style="font-weight:bold;color:var(--c);font-family:'VT323',monospace;font-size:18px;">${fmtBitrate(iv.bitrate)}</td>
+        <td style="color:${iv.retr > 0 ? '#ff8888' : 'var(--cd)'};">${iv.retr}</td>
+        <td>${iv.cwnd > 0 ? fmtBytes(iv.cwnd) : '—'}</td>
+        <td><span class="etiqueta" style="border-color:rgba(232,255,0,0.55);color:var(--c);font-size:8px;text-transform:uppercase;">${iv.tipo}</span></td>`;
+      tbody.appendChild(tr);
+    });
+    _lastIntervalos = intervalos.length;
+
+    // Auto-scroll a la última fila SOLO si el usuario ya estaba cerca del fondo
+    // (si está leyendo filas anteriores, no le robamos el scroll)
+    const wrap = document.getElementById('ip-tabla-wrap');
+    const distanciaAlFondo = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight;
+    if (distanciaAlFondo < 60) {
+      wrap.scrollTop = wrap.scrollHeight;
+    }
+  }
+
+  // Polling cada 400 milisegundos. Actualiza tarjetas, barra, grafica, tabla y consola.
+  setInterval(async () => {
+    try {
+      const r = await fetch('/api/iperf/estado');
+      const d = await r.json();
+      document.getElementById('ip-comando').textContent = d.comando || '—';
+
+      // Tarjetas de metricas
+      const gbps = d.gbps_actual || 0;
+      const mbps = d.mbps_actual || 0;
+      const bpsActual = d.bps_actual || 0;
+
+      if (gbps >= 0.1) {
+        document.getElementById('ip-bps').textContent      = gbps.toFixed(3);
+        document.getElementById('ip-bps-unit').textContent = 'Gbps';
+      } else {
+        document.getElementById('ip-bps').textContent      = mbps.toFixed(2);
+        document.getElementById('ip-bps-unit').textContent = 'Mbps';
+      }
+      if (bpsActual !== _lastBps && bpsActual > 0) {
+        pulse('ip-bps');
+        _lastBps = bpsActual;
+      }
+
+      if ((d.transferido_gb || 0) >= 1) {
+        document.getElementById('ip-tx').textContent      = d.transferido_gb.toFixed(3);
+        document.getElementById('ip-tx-unit').textContent = 'GB';
+      } else {
+        document.getElementById('ip-tx').textContent      = (d.transferido_mb || 0).toFixed(2);
+        document.getElementById('ip-tx-unit').textContent = 'MB';
+      }
+
+      document.getElementById('ip-retr').textContent          = d.retrans || 0;
+      document.getElementById('ip-intervalo-disp').textContent = d.intervalo || '—';
+      document.getElementById('ip-modo-disp').textContent      =
+        `MODO: ${(d.modo || '—').toUpperCase()} · ${d.activo ? 'ACTIVO' : 'INACTIVO'}`;
+
+      // Barra 0 a 10 Gbps
+      const pctBarra = Math.min((gbps / 10) * 100, 100);
+      document.getElementById('ip-pct').textContent = pctBarra.toFixed(2) + '%';
+      const barra = document.getElementById('ip-barra');
+      barra.style.width = pctBarra + '%';
+      if (pctBarra >= 80) barra.classList.add('alerta-uso');
+      else                 barra.classList.remove('alerta-uso');
+
+      // Grafica
+      dibujarGrafica(d.historial_bps || []);
+
+      // Tabla de intervalos en vivo
+      actualizarTabla(d.intervalos || []);
+
+      // Consola de salida raw
+      const cons = document.getElementById('ip-salida');
+      const nuevas = d.salida.slice(_ultimaLinea);
+      if (nuevas.length > 0) {
+        nuevas.forEach(linea => {
+          const div = document.createElement('div');
+          div.className = 'log-linea';
+          let color = 'var(--c)';
+          if (/error|failed/i.test(linea))     color = '#ff4444';
+          else if (/warn/i.test(linea))         color = '#ffcc00';
+          else if (/\bsender\b|\breceiver\b/i.test(linea)) color = '#00ff88';
+          div.innerHTML = `<span style="color:${color};">${linea.replace(/</g,'&lt;')}</span>`;
+          cons.appendChild(div);
+        });
+        cons.scrollTop = cons.scrollHeight;
+        _ultimaLinea = d.salida.length;
+      }
+
+      // Reset contadores si comando cambió (nuevo test)
+      if (d.salida.length < _ultimaLinea) {
+        _ultimaLinea = 0;
+        _lastIntervalos = 0;
+        _lastBps = -1;
+      }
+    } catch(e) {}
+  }, 400);
+
+  function mostrarAlerta(tipo, msg) {
+    const a = document.getElementById('alerta-iperf');
+    a.textContent = msg;
+    a.className = `alerta visible ${tipo === 'error' ? 'error' : 'exito'}`;
+    setTimeout(() => a.classList.remove('visible'), 5000);
+  }
+</script>
+{% endblock %}

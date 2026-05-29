@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}ORION Bank - Banca digital{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Banca digital <span class="accent">ORION Bank</span></h1>
+  <p class="lead">
+    Gestiona tus cuentas, consulta tu saldo y realiza transferencias de
+    forma rapida y segura desde cualquier dispositivo, las 24 horas.
+  </p>
+
+  <div class="cta-row">
+    <a href="{{ url_for('login_page') }}" class="btn btn-primary">Acceder a mi cuenta</a>
+    <a href="#endpoints" class="btn btn-ghost">Ver servicios disponibles</a>
+  </div>
+</section>
+
+<section id="endpoints" class="endpoints">
+  <h2>Servicios disponibles</h2>
+  <p class="muted">
+    Operaciones que puedes realizar a traves de la banca online.
+  </p>
+
+  <table class="endpoint-table">
+    <thead>
+      <tr>
+        <th>Metodo</th><th>Ruta</th><th>Tipo de contenido</th><th>Auth</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="m get">GET</span></td>  <td><code>/</code></td>                   <td>HTML estatico (esta pagina)</td>        <td>-</td></tr>
+      <tr><td><span class="m get">GET</span></td>  <td><code>/login</code></td>              <td>Formulario HTML</td>                    <td>-</td></tr>
+      <tr><td><span class="m post">POST</span></td><td><code>/login</code></td>              <td>form-urlencoded (credenciales)</td>     <td>-</td></tr>
+      <tr><td><span class="m post">POST</span></td><td><code>/api/login</code></td>          <td>JSON (credenciales)</td>                <td>-</td></tr>
+      <tr><td><span class="m get">GET</span></td>  <td><code>/dashboard</code></td>          <td>HTML autenticado</td>                   <td>Cookie JWT</td></tr>
+      <tr><td><span class="m get">GET</span></td>  <td><code>/api/saldo</code></td>          <td>JSON (saldo, IBAN)</td>                 <td>Bearer JWT</td></tr>
+      <tr><td><span class="m get">GET</span></td>  <td><code>/api/movimientos</code></td>    <td>JSON (lista de transacciones)</td>      <td>Bearer JWT</td></tr>
+      <tr><td><span class="m post">POST</span></td><td><code>/api/transferencia</code></td>  <td>JSON (importe + IBAN sensibles)</td>    <td>Bearer JWT</td></tr>
+      <tr><td><span class="m get">GET</span></td>  <td><code>/comprobante.pdf</code></td>    <td>PDF (descarga binaria)</td>             <td>Bearer JWT</td></tr>
+      <tr><td><span class="m get">GET</span></td>  <td><code>/api/whoami</code></td>         <td>JSON (diagnostico)</td>                 <td>Bearer JWT</td></tr>
+      <tr><td><span class="m get">GET</span></td>  <td><code>/logout</code></td>             <td>302 redirect, borra cookie</td>         <td>-</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="credentials">
+  <h2>Credenciales de prueba</h2>
+  <p class="muted">Cuentas de ejemplo para acceder a la banca online.</p>
+  <ul>
+    <li><code>fabian</code> / <code>Fabian1234</code></li>
+    <li><code>admin</code> / <code>admin123</code></li>
+    <li><code>demo</code> / <code>demo</code></li>
+  </ul>
+</section>
+{% endblock %}

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ORION{% endblock %}</title>
+
+  <link rel="icon" type="image/webp" href="{{ url_for('static', filename='img/logo.webp') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/orion.css') }}">
+</head>
+<body>
+
+  <!-- Sidebar lateral -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header" id="sidebarHeader" title="Pulsa para colapsar / expandir">
+      <img src="{{ url_for('static', filename='img/logo.webp') }}" alt="ORION" class="logo">
+      <span class="brand-wrap">
+        <img src="{{ url_for('static', filename='img/wordmark.webp') }}" alt="ORION" class="brand-img">
+      </span>
+    </div>
+
+    <nav class="nav">
+      <a href="{{ url_for('web.home') }}"
+         class="nav-item {% if current == 'home' %}active{% endif %}">
+        <span class="nav-icon">⌂</span>
+        <span class="nav-label">Inicio</span>
+      </a>
+      <a href="{{ url_for('web.resumen_page') }}"
+         class="nav-item {% if current == 'resumen' %}active{% endif %}">
+        <span class="nav-icon">▤</span>
+        <span class="nav-label">Resumen</span>
+      </a>
+      <a href="{{ url_for('web.rules_page') }}"
+         class="nav-item {% if current == 'rules' %}active{% endif %}">
+        <span class="nav-icon">≡</span>
+        <span class="nav-label">Reglas</span>
+      </a>
+      <a href="{{ url_for('web.dashboards_page') }}"
+         class="nav-item {% if current == 'dashboards' %}active{% endif %}">
+        <span class="nav-icon">▦</span>
+        <span class="nav-label">Dashboards</span>
+      </a>
+      <a href="{{ url_for('web.threat_intel_page') }}"
+         class="nav-item {% if current == 'inteligencia' %}active{% endif %}">
+        <span class="nav-icon">⚠</span>
+        <span class="nav-label">Inteligencia</span>
+      </a>
+      <a href="{{ url_for('web.alerts_page') }}"
+         class="nav-item {% if current == 'alertas' %}active{% endif %}">
+        <span class="nav-icon">!</span>
+        <span class="nav-label">Alertas</span>
+      </a>
+      <a href="{{ url_for('web.blocks_page') }}"
+         class="nav-item {% if current == 'blocks' %}active{% endif %}">
+        <span class="nav-icon">⊘</span>
+        <span class="nav-label">Bloqueos auto</span>
+      </a>
+      <a href="{{ url_for('web.mitm_page') }}"
+         class="nav-item {% if current == 'mitm' %}active{% endif %}">
+        <span class="nav-icon">◐</span>
+        <span class="nav-label">Intercepciones</span>
+      </a>
+    </nav>
+
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Colapsar barra lateral">
+      <span class="toggle-icon">‹</span>
+    </button>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="main">
+    <header class="topbar">
+      <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+      <div class="topbar-right">
+        <span class="status-pill" id="apiStatus">cargando...</span>
+      </div>
+    </header>
+
+    <!-- Fondo animado: paquetes que viajan -->
+    <div class="bg-fx" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i>
+      <i></i><i></i><i></i><i></i><i></i>
+    </div>
+
+    <section class="content">
+      {% block content %}{% endblock %}
+    </section>
+  </main>
+
+  <script>
+    // Toggle de la sidebar (colapsa/expande). Guarda preferencia en localStorage.
+    // Acepta dos disparadores: el boton del pie y el header (logo + wordmark).
+    const sidebar = document.getElementById("sidebar");
+    const toggle = document.getElementById("sidebarToggle");
+    const header = document.getElementById("sidebarHeader");
+    const apply = () => {
+      const collapsed = localStorage.getItem("orion-sidebar-collapsed") === "1";
+      sidebar.classList.toggle("collapsed", collapsed);
+    };
+    const toggleSidebar = () => {
+      const now = sidebar.classList.toggle("collapsed");
+      localStorage.setItem("orion-sidebar-collapsed", now ? "1" : "0");
+    };
+    toggle.addEventListener("click", toggleSidebar);
+    header.addEventListener("click", toggleSidebar);
+    apply();
+
+    // Health pill: pinta verde/rojo segun /api/health responda OK.
+    fetch("/api/health").then(r => r.json()).then(d => {
+      const pill = document.getElementById("apiStatus");
+      if (d.status === "ok") {
+        pill.textContent = "API OK";
+        pill.classList.add("ok");
+      } else {
+        pill.textContent = "API caida";
+        pill.classList.add("err");
+      }
+    }).catch(() => {
+      const pill = document.getElementById("apiStatus");
+      pill.textContent = "sin conexion";
+      pill.classList.add("err");
+    });
+  </script>
+
+  <!-- Modal global de confirmacion (reusable en todas las paginas via openModal()).
+       Cache-buster v=3 para forzar reload tras cambios. -->
+  <script src="{{ url_for('static', filename='js/orion-modal.js') }}?v=3"></script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,30 @@
+# TRex (Cisco) - se descarga aparte y se descomprime en esta carpeta.
+# Tamano: ~270 MB el tarball, ~820 MB descomprimido.
+v3.08/
+v3.08.tar.gz
+
+# Entorno virtual de Python: se regenera con pip install -r requirements.txt
+app/venv/
+venv/
+.venv/
+env/
+
+# Cache de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Backups y temporales
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Editor / IDE
+.vscode/
+.idea/
+*.iml
